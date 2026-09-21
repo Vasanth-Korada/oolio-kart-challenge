@@ -2,8 +2,7 @@
 
 A Go implementation of Oolio's food-ordering OpenAPI 3.1 spec, built for the
 advanced backend challenge. Stdlib `net/http` for routing, Postgres for
-storage, and a scale-conscious design for the one business rule the
-assignment calls out by name: promo-code validation.
+storage, and a scale-conscious design.
 
 ## Quickstart
 
