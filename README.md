@@ -118,12 +118,17 @@ in-memory slice.
 | --- | --- |
 | `GET /product` | List all products |
 | `GET /product/{id}` | 400 non-numeric id, 404 unknown id |
-| `POST /order` | Requires `api_key` header (401 missing, 403 wrong); 422 on empty items, bad quantity, unknown product, or invalid coupon |
+| `POST /order` | Requires `api_key` header (401 missing, 403 wrong); 422 on empty items, bad quantity, unknown product, or invalid coupon; a valid coupon takes 5% off (see below) |
 
-The `Order` response schema has no `total`/`discount` field, so a coupon's
-effect here is binary — it gates the order, it doesn't compute a discount.
-Real prices are still resolved and stored server-side, so adding a
-`subtotal`/`discountApplied` field is a small, spec-compatible next step.
+The base `Order` schema has no pricing fields — Oolio's spec never defines a
+discount amount for any code, so validation alone can't imply one. `couponCode`,
+`subtotal`, `discount`, and `total` are added as a documented extension:
+`subtotal` is server-computed from real prices (never trusted from the
+client), and a valid coupon takes a flat 5% off (`internal/order.CouponDiscountRate`)
+since no other rate is specified anywhere. `additionalProperties` isn't
+restricted in the spec, so these extra fields don't break conformance —
+`api/openapi.yaml` documents them explicitly rather than leaving them
+undocumented.
 
 ## Testing
 

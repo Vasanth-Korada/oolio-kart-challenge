@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/coupon"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/idgen"
@@ -28,6 +29,7 @@ func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order
 	}
 
 	resolved := make([]product.Product, 0, len(req.Items))
+	subtotal := 0.0
 	for _, item := range req.Items {
 		if item.Quantity <= 0 {
 			return Order{}, fmt.Errorf("%w: product %s", ErrInvalidQuantity, item.ProductID)
@@ -41,6 +43,7 @@ func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order
 			return Order{}, err
 		}
 		resolved = append(resolved, p)
+		subtotal += p.Price * float64(item.Quantity)
 	}
 
 	if req.CouponCode != "" && !s.coupons.IsValid(req.CouponCode) {
@@ -48,11 +51,20 @@ func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order
 		return Order{}, ErrInvalidCoupon
 	}
 
+	discount := 0.0
+	if req.CouponCode != "" {
+		discount = roundMoney(subtotal * CouponDiscountRate)
+	}
+	subtotal = roundMoney(subtotal)
+
 	o := Order{
 		ID:         idgen.NewUUID(),
 		Items:      req.Items,
 		Products:   resolved,
 		CouponCode: req.CouponCode,
+		Subtotal:   subtotal,
+		Discount:   discount,
+		Total:      roundMoney(subtotal - discount),
 	}
 
 	created, err := s.repo.Create(ctx, o)
@@ -64,7 +76,11 @@ func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order
 	s.logger.InfoContext(ctx, "order: created",
 		slog.String("order_id", created.ID),
 		slog.Int("item_count", len(created.Items)),
-		slog.Bool("coupon_applied", req.CouponCode != ""),
+		slog.Float64("discount", created.Discount),
 	)
 	return created, nil
+}
+
+func roundMoney(v float64) float64 {
+	return math.Round(v*100) / 100
 }

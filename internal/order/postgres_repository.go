@@ -23,8 +23,8 @@ func (r *PostgresRepository) Create(ctx context.Context, o Order) (Order, error)
 		}
 
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO orders (id, coupon_code) VALUES ($1, $2)`,
-			o.ID, couponCode,
+			`INSERT INTO orders (id, coupon_code, subtotal, discount, total) VALUES ($1, $2, $3, $4, $5)`,
+			o.ID, couponCode, o.Subtotal, o.Discount, o.Total,
 		); err != nil {
 			return err
 		}

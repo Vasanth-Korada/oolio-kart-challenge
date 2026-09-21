@@ -115,6 +115,27 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Product'
+        couponCode:
+          type: string
+          description: >-
+            Extension beyond the base spec: the coupon code applied to
+            this order, if any.
+        subtotal:
+          type: number
+          format: float
+          description: >-
+            Extension beyond the base spec: sum of item prices before
+            any discount.
+        discount:
+          type: number
+          format: float
+          description: >-
+            Extension beyond the base spec: amount deducted for a valid
+            coupon (flat 5% of subtotal), 0 when none was applied.
+        total:
+          type: number
+          format: float
+          description: 'Extension beyond the base spec: subtotal minus discount.'
     OrderReq:
       type: object
       description: Place a new order

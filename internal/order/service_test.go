@@ -91,6 +91,50 @@ func TestPlaceOrder_PricesAndPersistence(t *testing.T) {
 	}
 }
 
+func TestPlaceOrder_Discount(t *testing.T) {
+	// product "1" = $6.50, product "9" = $3.50 -> subtotal $10.00
+	tests := []struct {
+		name         string
+		couponCode   string
+		coupons      fakeCoupons
+		wantSubtotal float64
+		wantDiscount float64
+		wantTotal    float64
+	}{
+		{name: "no coupon", wantSubtotal: 10.00, wantDiscount: 0, wantTotal: 10.00},
+		{
+			name:         "valid coupon, flat 5% off",
+			couponCode:   "HAPPYHRS",
+			coupons:      fakeCoupons{"HAPPYHRS": true},
+			wantSubtotal: 10.00,
+			wantDiscount: 0.50,
+			wantTotal:    9.50,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, _ := newTestService(tt.coupons)
+			got, err := svc.PlaceOrder(context.Background(), order.CreateOrderRequest{
+				Items:      []order.Item{{ProductID: "1", Quantity: 1}, {ProductID: "9", Quantity: 1}},
+				CouponCode: tt.couponCode,
+			})
+			if err != nil {
+				t.Fatalf("PlaceOrder: %v", err)
+			}
+			if got.Subtotal != tt.wantSubtotal {
+				t.Errorf("Subtotal = %v, want %v", got.Subtotal, tt.wantSubtotal)
+			}
+			if got.Discount != tt.wantDiscount {
+				t.Errorf("Discount = %v, want %v", got.Discount, tt.wantDiscount)
+			}
+			if got.Total != tt.wantTotal {
+				t.Errorf("Total = %v, want %v", got.Total, tt.wantTotal)
+			}
+		})
+	}
+}
+
 func TestPlaceOrder_IgnoresClientSuppliedPrice(t *testing.T) {
 	svc, _ := newTestService(nil)
 

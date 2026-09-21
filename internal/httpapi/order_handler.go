@@ -27,10 +27,16 @@ type orderItemResponse struct {
 	Quantity  int    `json:"quantity"`
 }
 
+// Subtotal/Discount/Total/CouponCode are beyond the OpenAPI Order
+// schema — see order.Order for why.
 type orderResponse struct {
-	ID       string              `json:"id"`
-	Items    []orderItemResponse `json:"items"`
-	Products []productResponse   `json:"products"`
+	ID         string              `json:"id"`
+	Items      []orderItemResponse `json:"items"`
+	Products   []productResponse   `json:"products"`
+	CouponCode string              `json:"couponCode,omitempty"`
+	Subtotal   float64             `json:"subtotal"`
+	Discount   float64             `json:"discount"`
+	Total      float64             `json:"total"`
 }
 
 func toOrderResponse(o order.Order) orderResponse {
@@ -42,7 +48,15 @@ func toOrderResponse(o order.Order) orderResponse {
 	for i, p := range o.Products {
 		products[i] = toProductResponse(p)
 	}
-	return orderResponse{ID: o.ID, Items: items, Products: products}
+	return orderResponse{
+		ID:         o.ID,
+		Items:      items,
+		Products:   products,
+		CouponCode: o.CouponCode,
+		Subtotal:   o.Subtotal,
+		Discount:   o.Discount,
+		Total:      o.Total,
+	}
 }
 
 // Validation failures map to 422; a malformed body is the only 400.
