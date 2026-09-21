@@ -28,9 +28,6 @@ func writeGzipLines(t *testing.T, path string, lines []string) {
 	}
 }
 
-// TestBuildIndex_SyntheticFixture exercises the full build -> load ->
-// query path against tiny, known-content gzip files, independent of the
-// real (much larger) coupon files.
 func TestBuildIndex_SyntheticFixture(t *testing.T) {
 	dir := t.TempDir()
 	file1 := filepath.Join(dir, "f1.gz")
@@ -67,14 +64,14 @@ func TestBuildIndex_SyntheticFixture(t *testing.T) {
 		"short":    false,
 	}
 	for code, want := range cases {
-		if got := idx.IsValid(code); got != want {
-			t.Errorf("IsValid(%q) = %v, want %v", code, got, want)
-		}
+		t.Run(code, func(t *testing.T) {
+			if got := idx.IsValid(code); got != want {
+				t.Errorf("IsValid(%q) = %v, want %v", code, got, want)
+			}
+		})
 	}
 }
 
-// TestBuildIndex_TooFewFiles checks the guard rail rather than letting
-// a misconfigured call silently build a meaningless index.
 func TestBuildIndex_TooFewFiles(t *testing.T) {
 	dir := t.TempDir()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
