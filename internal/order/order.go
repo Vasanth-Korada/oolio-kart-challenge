@@ -1,8 +1,5 @@
-// Package order holds the Order domain model and the interfaces
-// (Repository, Service) the HTTP layer depends on. The order Service is
-// the one place product pricing, coupon validation, and persistence come
-// together, so it takes product.Service and coupon.Validator as
-// collaborators rather than reaching into their storage directly.
+// Package order holds the Order domain model and the Repository/Service
+// interfaces the HTTP layer depends on.
 package order
 
 import (
@@ -12,9 +9,7 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/product"
 )
 
-// Sentinel errors the HTTP layer maps to specific status codes (see
-// internal/httpapi/errors.go). Wrapped errors from deeper layers should
-// use errors.Is against these, never string matching.
+// Sentinel errors the HTTP layer maps to specific status codes.
 var (
 	ErrEmptyItems      = errors.New("order must contain at least one item")
 	ErrInvalidQuantity = errors.New("item quantity must be greater than zero")
@@ -30,12 +25,8 @@ type Item struct {
 }
 
 // Order is the domain model returned to callers, matching the OpenAPI
-// Order schema: the requested items, plus the resolved Product record
-// for each item (server-priced, never trusting client input).
-//
-// CouponCode is persisted for audit/analytics but intentionally left out
-// of the OpenAPI Order response schema, so the HTTP layer never
-// serializes it.
+// Order schema plus CouponCode, which is persisted but intentionally
+// left out of the JSON response (not part of that schema).
 type Order struct {
 	ID         string
 	Items      []Item

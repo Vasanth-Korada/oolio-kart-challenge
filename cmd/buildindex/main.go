@@ -1,7 +1,5 @@
 // Command buildindex turns Oolio's three raw coupon files into the
-// compact coupons.idx used by the running server. It is meant to be run
-// once (via `make build-coupon-index`), not on every deploy — see
-// internal/coupon/index.go for why.
+// compact coupons.idx used by the running server.
 package main
 
 import (

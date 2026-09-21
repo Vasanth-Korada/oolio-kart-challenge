@@ -18,9 +18,7 @@ type service struct {
 	logger   *slog.Logger
 }
 
-// NewService builds the default Service implementation. It depends on
-// product.Service and coupon.Validator interfaces (not their concrete
-// types or storage), keeping order logic testable with fakes for both.
+// NewService builds the default Service implementation.
 func NewService(products product.Service, coupons coupon.Validator, repo Repository, logger *slog.Logger) Service {
 	return &service{products: products, coupons: coupons, repo: repo, logger: logger}
 }
@@ -36,6 +34,7 @@ func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order
 			return Order{}, fmt.Errorf("%w: product %s", ErrInvalidQuantity, item.ProductID)
 		}
 
+		// p.Price comes from this lookup, never from the request.
 		p, err := s.products.Get(ctx, item.ProductID)
 		if err != nil {
 			if errors.Is(err, product.ErrNotFound) {
@@ -43,8 +42,6 @@ func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order
 			}
 			return Order{}, err
 		}
-		// Price is taken from the server-side lookup above, never from
-		// the request — the client cannot influence what it is charged.
 		resolved = append(resolved, p)
 	}
 

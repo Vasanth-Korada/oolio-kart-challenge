@@ -7,9 +7,7 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/observability"
 )
 
-// RouterDeps are the dependencies NewRouter wires into routes. Handlers
-// are passed in already constructed (against their Service interfaces)
-// so the router itself never touches business logic.
+// RouterDeps are the dependencies NewRouter wires into routes.
 type RouterDeps struct {
 	Product        *ProductHandler
 	Order          *OrderHandler
@@ -22,9 +20,7 @@ type RouterDeps struct {
 }
 
 // NewRouter builds the full HTTP handler: routes plus the middleware
-// chain (request id -> panic recovery -> logging -> metrics), with
-// api-key auth scoped only to POST /order per the OpenAPI security
-// scheme.
+// chain, with api-key auth scoped only to POST /order.
 func NewRouter(deps RouterDeps) http.Handler {
 	mux := http.NewServeMux()
 

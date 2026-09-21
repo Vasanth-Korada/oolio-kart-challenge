@@ -91,10 +91,6 @@ func TestPlaceOrder_PricesAndPersistence(t *testing.T) {
 	}
 }
 
-// TestPlaceOrder_IgnoresClientSuppliedPrice guards against a client
-// ever being able to influence what it's charged: Item carries no price
-// field at all, so this is really testing that the resolved Product
-// (and its price) always comes from the product service.
 func TestPlaceOrder_IgnoresClientSuppliedPrice(t *testing.T) {
 	svc, _ := newTestService(nil)
 

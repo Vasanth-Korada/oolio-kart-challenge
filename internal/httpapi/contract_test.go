@@ -20,10 +20,8 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/product"
 )
 
-// This file proves OpenAPI conformance rather than asserting it: every
-// request/response pair below is checked against Oolio's actual
-// api/openapi.yaml using kin-openapi, not just decoded into our own
-// response structs (which would only prove we agree with ourselves).
+// Every request/response pair here is checked against the real
+// api/openapi.yaml via kin-openapi, not just our own response structs.
 
 const (
 	specPath   = "../../api/openapi.yaml"
@@ -61,11 +59,9 @@ func newTestRouter(t *testing.T) http.Handler {
 	})
 }
 
-// loadSpecRouter loads the real spec and builds a kin-openapi router
-// from it. The spec's server is an absolute external URL
+// The spec's server is an absolute external URL
 // (https://orderfoodonline.deno.dev/api); our app is mounted at root,
-// so the server is overridden to "/" purely so requests route for this
-// test — the paths and schemas being validated are untouched.
+// so it's overridden to "/" purely so requests route in this test.
 func loadSpecRouter(t *testing.T) routers.Router {
 	t.Helper()
 	ctx := context.Background()
@@ -85,11 +81,8 @@ func loadSpecRouter(t *testing.T) routers.Router {
 	return r
 }
 
-// assertConformant sends req through both the real application router
-// and the spec's request/response validator, failing the test if
-// actual traffic doesn't conform to the OpenAPI spec Oolio provided.
-// bodyForValidation is a separate copy of the body since validating a
-// request consumes its reader.
+// bodyForValidation is a separate copy since validating a request
+// consumes its body reader.
 func assertConformant(t *testing.T, app http.Handler, spec routers.Router, req *http.Request, bodyForValidation []byte) *httptest.ResponseRecorder {
 	t.Helper()
 	ctx := context.Background()
@@ -148,13 +141,9 @@ func TestContract_GetProduct(t *testing.T) {
 	}
 }
 
-// TestContract_GetProduct_InvalidID is a two-layer check rather than a
-// single assertConformant call: the spec declares productId as
-// type:integer, so kin-openapi rejects "not-a-number" at the *request*
-// parameter level — there's no response to validate because the spec
-// agrees the request itself is malformed. This confirms the spec's own
-// type constraint is what makes the id invalid, then separately
-// confirms our app independently reaches the same conclusion (400).
+// A two-layer check: the spec declares productId as an integer, so
+// kin-openapi rejects "not-a-number" at request validation, before any
+// response exists — then the app is checked separately for the same 400.
 func TestContract_GetProduct_InvalidID(t *testing.T) {
 	spec := loadSpecRouter(t)
 	req := httptest.NewRequest(http.MethodGet, "/product/not-a-number", nil)

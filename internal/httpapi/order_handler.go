@@ -8,8 +8,6 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/order"
 )
 
-// OrderHandler depends on order.Service — the one place item validation,
-// server-side pricing, and coupon checking come together.
 type OrderHandler struct {
 	Service order.Service
 }
@@ -47,10 +45,9 @@ func toOrderResponse(o order.Order) orderResponse {
 	return orderResponse{ID: o.ID, Items: items, Products: products}
 }
 
-// Create handles POST /order. Validation failures (empty items, bad
-// quantity, unknown product, invalid coupon) all map to 422 per the
-// spec's "Validation exception" response — a malformed request body is
-// the only case that's a 400.
+// Validation failures (empty items, bad quantity, unknown product,
+// invalid coupon) map to 422 per the spec's "Validation exception"
+// response; a malformed body is the only case that's a 400.
 func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req placeOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

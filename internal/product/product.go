@@ -1,7 +1,5 @@
-// Package product holds the Product domain model and the interfaces
-// (Repository, Service) that the rest of the application depends on.
-// Concrete implementations (in-memory, Postgres) live alongside these
-// interfaces but callers should only ever reference the interfaces.
+// Package product holds the Product domain model and the
+// Repository/Service interfaces the rest of the application depends on.
 package product
 
 import (
@@ -29,9 +27,6 @@ type Repository interface {
 }
 
 // Service is the business-logic seam consumed by the HTTP layer.
-// It exists as its own interface (rather than exposing Repository
-// directly to handlers) so validation/enrichment can be added later
-// without changing the handler's dependency shape.
 type Service interface {
 	List(ctx context.Context) ([]Product, error)
 	Get(ctx context.Context, id string) (Product, error)

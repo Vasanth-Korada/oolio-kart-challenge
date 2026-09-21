@@ -10,8 +10,7 @@ type service struct {
 	logger *slog.Logger
 }
 
-// NewService builds the default Service implementation on top of a
-// Repository. Callers depend on the Service interface, never this type.
+// NewService builds the default Service implementation.
 func NewService(repo Repository, logger *slog.Logger) Service {
 	return &service{repo: repo, logger: logger}
 }

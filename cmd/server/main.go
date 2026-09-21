@@ -107,11 +107,8 @@ func run() error {
 	return nil
 }
 
-// loadCouponValidator loads the pre-built coupon index. A missing index
-// (e.g. `make build-coupon-index` hasn't run yet) is logged as a
-// warning rather than a fatal error: every endpoint except
-// coupon-carrying orders keeps working, which is a better failure mode
-// for local/first-run setups than refusing to start at all.
+// A missing index file is a warning, not a fatal error: every endpoint
+// except coupon-carrying orders keeps working.
 func loadCouponValidator(path string, logger *slog.Logger) (coupon.Validator, error) {
 	idx, err := coupon.LoadIndex(path)
 	if err != nil {

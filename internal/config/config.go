@@ -1,6 +1,5 @@
-// Package config loads process configuration from environment variables.
-// Every setting has a sane default so the service can run locally with
-// zero configuration, per twelve-factor practice.
+// Package config loads process configuration from environment variables,
+// with sane defaults so the service runs locally with zero setup.
 package config
 
 import (
@@ -28,10 +27,7 @@ func Load() Config {
 		APIKey:          getEnv("API_KEY", "apitest"),
 		CouponIndexPath: getEnv("COUPON_INDEX_PATH", "coupons/coupons.idx"),
 		LogLevel:        getEnv("LOG_LEVEL", "info"),
-		// The React UI lives in a separate repo/origin (see README).
-		// "*" is fine for this assignment's demo purposes; a real
-		// deployment would pin this to the frontend's actual origin.
-		CORSOrigin: getEnv("CORS_ALLOWED_ORIGIN", "*"),
+		CORSOrigin:      getEnv("CORS_ALLOWED_ORIGIN", "*"),
 	}
 }
 

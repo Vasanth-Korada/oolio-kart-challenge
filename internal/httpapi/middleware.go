@@ -62,10 +62,8 @@ func Logging(base *slog.Logger) Middleware {
 
 			next.ServeHTTP(rec, r.WithContext(withLogger(r.Context(), reqLogger)))
 
-			// Logged as milliseconds (float), not a slog.Duration: the
-			// JSON handler renders slog.Duration as raw nanoseconds,
-			// which is both hard to eyeball and inconsistent with the
-			// millisecond buckets used in the Prometheus histogram.
+			// duration_ms, not slog.Duration: the JSON handler renders
+			// slog.Duration as raw nanoseconds, hard to eyeball.
 			reqLogger.Info("http request",
 				slog.String("method", r.Method),
 				slog.String("path", r.URL.Path),
@@ -116,11 +114,9 @@ func Recover(base *slog.Logger) Middleware {
 	}
 }
 
-// CORS allows cross-origin requests from allowedOrigin — needed because
-// the React frontend lives in its own repo/origin, separate from this
-// API. allowedOrigin "*" reflects any request origin (fine for this
-// assignment's demo purposes); a real deployment would pin it to the
-// frontend's actual origin instead.
+// CORS allows cross-origin requests from allowedOrigin — the React
+// frontend lives in its own repo/origin. "*" reflects any origin, fine
+// for this assignment; a real deployment would pin it to one origin.
 func CORS(allowedOrigin string) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

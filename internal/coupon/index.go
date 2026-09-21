@@ -13,25 +13,16 @@ import (
 	"sort"
 )
 
-// requiredFileCount is the ">= N of the source files" threshold from
-// the promo-code rule. 2 today; kept as a constant rather than a
-// hardcoded literal in the merge logic so the rule reads as data, not
-// magic numbers.
+// requiredFileCount is the ">= N files" threshold from the promo-code rule.
 const requiredFileCount = 2
 
-// indexMagic identifies the binary index format written by BuildIndex
-// and read by LoadIndex.
 const indexMagic = "CPX1"
 
 // key128 is a SHA-256-truncated 128-bit fingerprint of a coupon code.
-//
-// A cheaper 64-bit key was the first instinct, but at the observed
-// scale (~3*10^8 candidate lines across the three files) the
-// birthday-bound collision probability for a 64-bit hash is roughly
-// N^2/2^65 ~= 1-in-4000 — too risky for something that gates a real
-// discount. 128 bits via crypto/sha256 (stdlib, no new dependency)
-// drops that to effectively zero, at a cost that's only paid once,
-// offline, during the index build.
+// 64 bits was the cheaper first instinct, but at ~3*10^8 candidate
+// lines a 64-bit hash's birthday-bound collision odds (~1-in-4000) are
+// too risky for something gating a real discount; 128 bits makes that
+// negligible for a cost paid once, offline.
 type key128 [16]byte
 
 func hashCode(code string) key128 {
@@ -67,9 +58,7 @@ func (idx *Index) Len() int { return len(idx.keys) }
 
 var _ Validator = (*Index)(nil)
 
-// Stats summarizes one BuildIndex run — the hard numbers that go in the
-// README as evidence for the "can this handle scale" question, rather
-// than a qualitative description of the approach.
+// Stats summarizes one BuildIndex run.
 type Stats struct {
 	PerFileLines      []int64
 	PerFileCandidates []int
@@ -83,14 +72,10 @@ type Stats struct {
 // and writes the sorted set of fingerprints appearing in at least
 // requiredFileCount of the files to outPath.
 //
-// Design note: an earlier version of this used a single
-// map[key128]uint8 accumulating bits across all files. At this data's
-// real scale (~3*10^8 total candidate lines) that map's per-entry
-// overhead would cost tens of GB of RAM — measured against the actual
-// downloaded files, not assumed. Collecting each file's candidates into
-// its own sorted, deduplicated slice (16 bytes/entry, no map overhead)
-// and doing a k-way merge instead bounds memory to roughly the sum of
-// each file's own unique candidate count, with no per-entry map tax.
+// Each file's candidates are hashed, sorted, and deduplicated into
+// their own slice rather than accumulated into one shared map — at the
+// real ~3*10^8-line scale a map's per-entry overhead costs tens of GB,
+// measured against the actual files, not assumed.
 func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, error) {
 	if len(paths) < requiredFileCount {
 		return Stats{}, fmt.Errorf("coupon: need at least %d source files, got %d", requiredFileCount, len(paths))
@@ -174,16 +159,10 @@ func dedupeSorted(s []key128) []key128 {
 }
 
 // scanFile decompresses path and calls onCandidate for every line whose
-// length falls in the valid range. gzip.Reader defaults to
-// Multistream(true), so a source file made of several concatenated
-// gzip members (as Oolio's coupon files are) decodes transparently.
-//
-// A truncated or corrupted tail — the exact failure mode hit while
-// downloading these files over an unreliable connection during
-// development — stops the scan early but does not fail the build: what
-// was read cleanly up to that point is still valid input, so it's kept
-// and the truncation is logged as a warning instead of aborting the
-// whole index.
+// length falls in the valid range. A truncated or corrupted tail (the
+// failure mode hit downloading these files over an unreliable
+// connection during development) logs a warning and keeps what was
+// read cleanly instead of failing the whole build.
 func scanFile(logger *slog.Logger, fileIndex int, path string, onCandidate func(code string)) (int64, error) {
 	f, err := os.Open(path)
 	if err != nil {

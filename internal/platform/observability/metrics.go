@@ -1,7 +1,5 @@
 // Package observability defines the metrics seam used by the HTTP
-// middleware and provides a Prometheus-backed implementation plus a
-// no-op one for tests. Handlers and middleware depend only on
-// MetricsRecorder, so the backend can change without touching them.
+// middleware, with a Prometheus-backed implementation and a no-op one.
 package observability
 
 import "time"
