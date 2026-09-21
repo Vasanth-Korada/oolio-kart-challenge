@@ -7,7 +7,6 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/observability"
 )
 
-// RouterDeps are the dependencies NewRouter wires into routes.
 type RouterDeps struct {
 	Product        *ProductHandler
 	Order          *OrderHandler
@@ -19,8 +18,6 @@ type RouterDeps struct {
 	CORSOrigin     string // "" disables CORS headers entirely
 }
 
-// NewRouter builds the full HTTP handler: routes plus the middleware
-// chain, with api-key auth scoped only to POST /order.
 func NewRouter(deps RouterDeps) http.Handler {
 	mux := http.NewServeMux()
 

@@ -13,16 +13,12 @@ import (
 	"sort"
 )
 
-// requiredFileCount is the ">= N files" threshold from the promo-code rule.
 const requiredFileCount = 2
-
 const indexMagic = "CPX1"
 
-// key128 is a SHA-256-truncated 128-bit fingerprint of a coupon code.
-// 64 bits was the cheaper first instinct, but at ~3*10^8 candidate
-// lines a 64-bit hash's birthday-bound collision odds (~1-in-4000) are
-// too risky for something gating a real discount; 128 bits makes that
-// negligible for a cost paid once, offline.
+// A 64-bit hash's birthday-bound collision odds are non-trivial at the
+// ~3*10^8 candidate lines here, too risky for something gating a real
+// discount, so this is 128 bits.
 type key128 [16]byte
 
 func hashCode(code string) key128 {
@@ -32,16 +28,10 @@ func hashCode(code string) key128 {
 	return k
 }
 
-// Index is a Validator backed by a sorted, deduplicated set of the
-// 128-bit fingerprints of every code found in at least requiredFileCount
-// of the source files. Lookups are O(log n) binary search with no map
-// allocation.
 type Index struct {
-	keys []key128 // sorted ascending
+	keys []key128
 }
 
-// IsValid implements Validator: a code must satisfy the length
-// precondition and have its fingerprint present in the index.
 func (idx *Index) IsValid(code string) bool {
 	if !ValidLength(code) {
 		return false
@@ -53,12 +43,10 @@ func (idx *Index) IsValid(code string) bool {
 	return i < len(idx.keys) && idx.keys[i] == k
 }
 
-// Len reports how many distinct valid codes the index holds.
 func (idx *Index) Len() int { return len(idx.keys) }
 
 var _ Validator = (*Index)(nil)
 
-// Stats summarizes one BuildIndex run.
 type Stats struct {
 	PerFileLines      []int64
 	PerFileCandidates []int
@@ -67,15 +55,9 @@ type Stats struct {
 	IndexBytes        int64
 }
 
-// BuildIndex streams each of the given gzip-compressed source files
-// exactly once, keeps only lines whose length is in the valid range,
-// and writes the sorted set of fingerprints appearing in at least
-// requiredFileCount of the files to outPath.
-//
 // Each file's candidates are hashed, sorted, and deduplicated into
-// their own slice rather than accumulated into one shared map — at the
-// real ~3*10^8-line scale a map's per-entry overhead costs tens of GB,
-// measured against the actual files, not assumed.
+// their own slice and merged, rather than accumulated into one shared
+// map: at ~3*10^8 lines a map's per-entry overhead costs tens of GB.
 func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, error) {
 	if len(paths) < requiredFileCount {
 		return Stats{}, fmt.Errorf("coupon: need at least %d source files, got %d", requiredFileCount, len(paths))
@@ -128,9 +110,6 @@ func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, err
 	return stats, nil
 }
 
-// collectFileHashes streams path (gzip-compressed), hashes every
-// length-valid line, and returns the sorted, deduplicated set of
-// fingerprints plus the total line count.
 func collectFileHashes(logger *slog.Logger, fileIndex int, path string) ([]key128, int64, error) {
 	var hashes []key128
 	lines, err := scanFile(logger, fileIndex, path, func(code string) {
@@ -158,11 +137,8 @@ func dedupeSorted(s []key128) []key128 {
 	return s[:j+1]
 }
 
-// scanFile decompresses path and calls onCandidate for every line whose
-// length falls in the valid range. A truncated or corrupted tail (the
-// failure mode hit downloading these files over an unreliable
-// connection during development) logs a warning and keeps what was
-// read cleanly instead of failing the whole build.
+// A truncated or corrupted tail logs a warning and keeps what was read
+// cleanly instead of failing the whole build.
 func scanFile(logger *slog.Logger, fileIndex int, path string, onCandidate func(code string)) (int64, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -177,7 +153,7 @@ func scanFile(logger *slog.Logger, fileIndex int, path string, onCandidate func(
 	defer gz.Close()
 
 	scanner := bufio.NewScanner(gz)
-	scanner.Buffer(make([]byte, 64*1024), 1<<20) // generous but bounded; real lines are 8-10 bytes
+	scanner.Buffer(make([]byte, 64*1024), 1<<20)
 
 	var lines int64
 	for scanner.Scan() {
@@ -198,9 +174,6 @@ func scanFile(logger *slog.Logger, fileIndex int, path string, onCandidate func(
 	return lines, nil
 }
 
-// mergeAtLeastN performs a k-way merge across sorted, deduplicated
-// fingerprint sets and returns the sorted union of every fingerprint
-// present in at least n of them.
 func mergeAtLeastN(sets [][]key128, n int) []key128 {
 	idxs := make([]int, len(sets))
 	var result []key128
@@ -218,7 +191,7 @@ func mergeAtLeastN(sets [][]key128, n int) []key128 {
 			}
 		}
 		if minSet == -1 {
-			break // every set exhausted
+			break
 		}
 
 		count := 0
@@ -251,7 +224,6 @@ func writeIndex(w *os.File, keys []key128) error {
 	return bw.Flush()
 }
 
-// LoadIndex reads a binary index file written by BuildIndex.
 func LoadIndex(path string) (*Index, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

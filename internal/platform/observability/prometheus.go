@@ -10,15 +10,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Prometheus is the production MetricsRecorder, exposing counters and
-// histograms in the standard /metrics text format.
 type Prometheus struct {
 	requestsTotal   *prometheus.CounterVec
 	requestDuration *prometheus.HistogramVec
 }
 
-// NewPrometheus registers the service's metrics with the default
-// Prometheus registry and returns a recorder for the HTTP middleware.
 func NewPrometheus() *Prometheus {
 	return &Prometheus{
 		requestsTotal: promauto.NewCounterVec(prometheus.CounterOpts{
@@ -39,7 +35,6 @@ func (p *Prometheus) ObserveRequest(method, route string, status int, duration t
 	p.requestDuration.WithLabelValues(method, route).Observe(duration.Seconds())
 }
 
-// Handler serves the /metrics scrape endpoint.
 func (p *Prometheus) Handler() http.Handler {
 	return promhttp.Handler()
 }

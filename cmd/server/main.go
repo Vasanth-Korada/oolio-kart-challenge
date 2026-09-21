@@ -1,4 +1,3 @@
-// Command server runs the Oolio food-ordering API.
 package main
 
 import (
@@ -107,8 +106,6 @@ func run() error {
 	return nil
 }
 
-// A missing index file is a warning, not a fatal error: every endpoint
-// except coupon-carrying orders keeps working.
 func loadCouponValidator(path string, logger *slog.Logger) (coupon.Validator, error) {
 	idx, err := coupon.LoadIndex(path)
 	if err != nil {

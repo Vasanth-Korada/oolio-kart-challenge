@@ -18,7 +18,6 @@ type service struct {
 	logger   *slog.Logger
 }
 
-// NewService builds the default Service implementation.
 func NewService(products product.Service, coupons coupon.Validator, repo Repository, logger *slog.Logger) Service {
 	return &service{products: products, coupons: coupons, repo: repo, logger: logger}
 }
@@ -34,7 +33,6 @@ func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order
 			return Order{}, fmt.Errorf("%w: product %s", ErrInvalidQuantity, item.ProductID)
 		}
 
-		// p.Price comes from this lookup, never from the request.
 		p, err := s.products.Get(ctx, item.ProductID)
 		if err != nil {
 			if errors.Is(err, product.ErrNotFound) {

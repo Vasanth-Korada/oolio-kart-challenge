@@ -5,14 +5,11 @@ import (
 	"sync"
 )
 
-// MemoryRepository is an in-process Repository used by tests so they
-// don't need a real Postgres instance to exercise order creation.
 type MemoryRepository struct {
 	mu     sync.Mutex
 	orders map[string]Order
 }
 
-// NewMemoryRepository builds an empty MemoryRepository.
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{orders: make(map[string]Order)}
 }
@@ -24,7 +21,6 @@ func (r *MemoryRepository) Create(_ context.Context, o Order) (Order, error) {
 	return o, nil
 }
 
-// All returns every order created so far, for test assertions.
 func (r *MemoryRepository) All() []Order {
 	r.mu.Lock()
 	defer r.mu.Unlock()

@@ -1,5 +1,3 @@
-// Command buildindex turns Oolio's three raw coupon files into the
-// compact coupons.idx used by the running server.
 package main
 
 import (

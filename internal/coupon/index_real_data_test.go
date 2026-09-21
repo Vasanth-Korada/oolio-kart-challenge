@@ -7,8 +7,6 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/coupon"
 )
 
-// Path to the committed, built index — skipped if absent (e.g. before
-// `make build-coupon-index` has run) rather than failing CI.
 const realIndexPath = "../../coupons/coupons.idx"
 
 func TestRealIndex_DocumentedExamples(t *testing.T) {

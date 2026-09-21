@@ -20,16 +20,11 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/product"
 )
 
-// Every request/response pair here is checked against the real
-// api/openapi.yaml via kin-openapi, not just our own response structs.
-
 const (
 	specPath   = "../../api/openapi.yaml"
 	testAPIKey = "apitest"
 )
 
-// fakeCouponValidator lets these tests exercise both the valid and
-// invalid coupon paths without touching the real (313M-line) index.
 type fakeCouponValidator struct{ valid map[string]bool }
 
 func (f fakeCouponValidator) IsValid(code string) bool { return f.valid[code] }
@@ -59,9 +54,8 @@ func newTestRouter(t *testing.T) http.Handler {
 	})
 }
 
-// The spec's server is an absolute external URL
-// (https://orderfoodonline.deno.dev/api); our app is mounted at root,
-// so it's overridden to "/" purely so requests route in this test.
+// The spec's server is an absolute URL; overridden to "/" so requests
+// route against our root-mounted app in this test.
 func loadSpecRouter(t *testing.T) routers.Router {
 	t.Helper()
 	ctx := context.Background()
@@ -81,8 +75,7 @@ func loadSpecRouter(t *testing.T) routers.Router {
 	return r
 }
 
-// bodyForValidation is a separate copy since validating a request
-// consumes its body reader.
+// bodyForValidation is a separate copy: validating consumes the body.
 func assertConformant(t *testing.T, app http.Handler, spec routers.Router, req *http.Request, bodyForValidation []byte) *httptest.ResponseRecorder {
 	t.Helper()
 	ctx := context.Background()
@@ -101,9 +94,7 @@ func assertConformant(t *testing.T, app http.Handler, spec routers.Router, req *
 		Request:    validationReq,
 		PathParams: pathParams,
 		Route:      route,
-		// Security (the api_key scheme) is our app's job, exercised via
-		// the actual status codes below — this only checks shape, not
-		// who's allowed to call it.
+		// api_key enforcement is checked via status codes below, not here.
 		Options: &openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc},
 	}
 	if err := openapi3filter.ValidateRequest(ctx, reqInput); err != nil {
@@ -141,9 +132,8 @@ func TestContract_GetProduct(t *testing.T) {
 	}
 }
 
-// A two-layer check: the spec declares productId as an integer, so
-// kin-openapi rejects "not-a-number" at request validation, before any
-// response exists — then the app is checked separately for the same 400.
+// productId is spec'd as an integer, so kin-openapi rejects this at
+// request validation, before any response exists to check.
 func TestContract_GetProduct_InvalidID(t *testing.T) {
 	spec := loadSpecRouter(t)
 	req := httptest.NewRequest(http.MethodGet, "/product/not-a-number", nil)

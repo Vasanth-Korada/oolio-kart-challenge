@@ -35,11 +35,6 @@ func TestBuildIndex_SyntheticFixture(t *testing.T) {
 	file3 := filepath.Join(dir, "f3.gz")
 	out := filepath.Join(dir, "out.idx")
 
-	// AAAAAAAA: files 1 & 2      -> valid (2 of 3)
-	// BBBBBBBB: files 1, 2 & 3   -> valid (3 of 3)
-	// CCCCCCCC: file 1 only      -> invalid (1 of 3), mirrors SUPER100
-	// short / toolongtoolongxx:  wrong length, must be ignored even
-	//                            though they repeat across files
 	writeGzipLines(t, file1, []string{"AAAAAAAA", "BBBBBBBB", "CCCCCCCC", "short", "toolongtoolongxx"})
 	writeGzipLines(t, file2, []string{"AAAAAAAA", "BBBBBBBB", "short", "toolongtoolongxx"})
 	writeGzipLines(t, file3, []string{"BBBBBBBB"})

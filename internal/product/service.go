@@ -10,7 +10,6 @@ type service struct {
 	logger *slog.Logger
 }
 
-// NewService builds the default Service implementation.
 func NewService(repo Repository, logger *slog.Logger) Service {
 	return &service{repo: repo, logger: logger}
 }

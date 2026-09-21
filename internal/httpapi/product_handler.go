@@ -38,9 +38,7 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, resp)
 }
 
-// The spec declares productId as an int64 path parameter, so a
-// non-numeric id is a 400 even though the domain model stores ids as
-// strings for storage-backend flexibility.
+// productId is spec'd as an integer, so a non-numeric id is a 400.
 func (h *ProductHandler) Get(w http.ResponseWriter, r *http.Request) {
 	idParam := r.PathValue("id")
 	if _, err := strconv.ParseInt(idParam, 10, 64); err != nil {

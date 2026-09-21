@@ -1,5 +1,3 @@
-// Package config loads process configuration from environment variables,
-// with sane defaults so the service runs locally with zero setup.
 package config
 
 import (
@@ -7,7 +5,6 @@ import (
 	"os"
 )
 
-// Config holds all environment-derived settings for cmd/server.
 type Config struct {
 	Port            string
 	DatabaseURL     string
@@ -17,9 +14,6 @@ type Config struct {
 	CORSOrigin      string
 }
 
-// Load reads Config from the environment, applying defaults for anything
-// unset. It never fails: a missing DatabaseURL simply means the caller
-// will get a clear connection error at startup instead of here.
 func Load() Config {
 	return Config{
 		Port:            getEnv("PORT", "8080"),
