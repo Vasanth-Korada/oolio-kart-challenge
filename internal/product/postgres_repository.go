@@ -19,7 +19,10 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 }
 
 func (r *PostgresRepository) List(ctx context.Context) ([]Product, error) {
-	rows, err := r.pool.Query(ctx, `SELECT id, name, price::float8, category FROM products ORDER BY id`)
+	// id is TEXT for storage-backend flexibility, but holds numeric
+	// values today — order numerically so listings read naturally
+	// rather than "1, 10, 2, 3, ...".
+	rows, err := r.pool.Query(ctx, `SELECT id, name, price::float8, category FROM products ORDER BY id::int`)
 	if err != nil {
 		return nil, err
 	}

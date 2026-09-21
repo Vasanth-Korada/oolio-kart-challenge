@@ -62,11 +62,15 @@ func Logging(base *slog.Logger) Middleware {
 
 			next.ServeHTTP(rec, r.WithContext(withLogger(r.Context(), reqLogger)))
 
+			// Logged as milliseconds (float), not a slog.Duration: the
+			// JSON handler renders slog.Duration as raw nanoseconds,
+			// which is both hard to eyeball and inconsistent with the
+			// millisecond buckets used in the Prometheus histogram.
 			reqLogger.Info("http request",
 				slog.String("method", r.Method),
 				slog.String("path", r.URL.Path),
 				slog.Int("status", rec.status),
-				slog.Duration("duration", time.Since(start)),
+				slog.Float64("duration_ms", float64(time.Since(start).Microseconds())/1000.0),
 			)
 		})
 	}

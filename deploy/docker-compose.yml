@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: oolio
+      POSTGRES_PASSWORD: oolio
+      POSTGRES_DB: oolio
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oolio -d oolio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://oolio:oolio@postgres:5432/oolio?sslmode=disable
+      API_KEY: apitest
+      PORT: "8080"
+      LOG_LEVEL: info
+      COUPON_INDEX_PATH: coupons/coupons.idx
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:

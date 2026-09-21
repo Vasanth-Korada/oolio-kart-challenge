@@ -11,9 +11,9 @@ func TestValidLength_Boundaries(t *testing.T) {
 		code string
 		want bool
 	}{
-		{"1234567", false},    // 7 chars — below minimum
-		{"12345678", true},    // 8 chars — minimum
-		{"1234567890", true},  // 10 chars — maximum
+		{"1234567", false},     // 7 chars — below minimum
+		{"12345678", true},     // 8 chars — minimum
+		{"1234567890", true},   // 10 chars — maximum
 		{"12345678901", false}, // 11 chars — above maximum
 		{"", false},
 	}
