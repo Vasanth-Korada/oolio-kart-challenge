@@ -2,16 +2,11 @@ package product
 
 import "context"
 
-// MemoryRepository is a Repository backed by an in-process slice. It backs
-// fast unit tests today and doubles as seed data for local runs before the
-// Postgres-backed repository is wired in.
 type MemoryRepository struct {
 	products []Product
 	byID     map[string]Product
 }
 
-// NewMemoryRepository builds a MemoryRepository seeded with the given
-// products.
 func NewMemoryRepository(seed []Product) *MemoryRepository {
 	byID := make(map[string]Product, len(seed))
 	for _, p := range seed {
@@ -34,11 +29,8 @@ func (r *MemoryRepository) GetByID(_ context.Context, id string) (Product, error
 	return p, nil
 }
 
-// compile-time check that MemoryRepository satisfies Repository.
 var _ Repository = (*MemoryRepository)(nil)
 
-// SeedProducts is the default catalog used for local/dev runs until the
-// Postgres migration's seed data takes over in production.
 func SeedProducts() []Product {
 	return []Product{
 		{ID: "1", Name: "Waffle with Berries", Price: 6.50, Category: "Waffle"},

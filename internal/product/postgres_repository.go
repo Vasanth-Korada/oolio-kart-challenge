@@ -8,18 +8,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// PostgresRepository is the production Repository implementation.
 type PostgresRepository struct {
 	pool *pgxpool.Pool
 }
 
-// NewPostgresRepository builds a Repository backed by Postgres.
 func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{pool: pool}
 }
 
 func (r *PostgresRepository) List(ctx context.Context) ([]Product, error) {
-	rows, err := r.pool.Query(ctx, `SELECT id, name, price::float8, category FROM products ORDER BY id`)
+	rows, err := r.pool.Query(ctx, `SELECT id, name, price::float8, category FROM products ORDER BY id::int`)
 	if err != nil {
 		return nil, err
 	}
@@ -50,5 +48,4 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id string) (Product, e
 	return p, nil
 }
 
-// compile-time check that PostgresRepository satisfies Repository.
 var _ Repository = (*PostgresRepository)(nil)

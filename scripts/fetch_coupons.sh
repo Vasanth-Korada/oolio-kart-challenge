@@ -1,17 +1,7 @@
 #!/usr/bin/env bash
-# Downloads Oolio's three raw coupon files into coupons/raw/.
-#
-# These files are large (~650-740MB each) and, in practice, plain
-# downloads over an unreliable connection can silently stall or
-# truncate mid-transfer without curl reporting a non-zero exit code —
-# hit first-hand while building this project. Trusting the reported
-# "success" of a truncated download would mean buildindex silently
-# processes incomplete data and under-counts valid coupons.
-#
-# So this script verifies every download's final size against the
-# origin's authoritative Content-Length header and resumes (rather than
-# restarting) until it matches, instead of trusting curl's exit code
-# alone.
+# Downloads the three coupon files into coupons/raw/, verifying final
+# size against Content-Length and resuming on mismatch — plain
+# downloads of these ~700MB files can silently truncate mid-transfer.
 set -euo pipefail
 
 BASE_URL="https://orderfoodonline-files.s3.ap-southeast-2.amazonaws.com"

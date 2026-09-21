@@ -5,9 +5,7 @@ CREATE TABLE IF NOT EXISTS products (
     category TEXT NOT NULL
 );
 
--- The OpenAPI spec has no product-creation endpoint, so the catalog is
--- seeded here. Mirrors internal/product.SeedProducts() used for local
--- runs without Postgres.
+-- The spec has no product-creation endpoint, so the catalog is seeded here.
 INSERT INTO products (id, name, price, category) VALUES
     ('1',  'Waffle with Berries',            6.50, 'Waffle'),
     ('2',  'Vanilla Bean Crème Brûlée',      7.00, 'Crème Brûlée'),

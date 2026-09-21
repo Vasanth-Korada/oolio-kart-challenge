@@ -13,25 +13,12 @@ import (
 	"sort"
 )
 
-// requiredFileCount is the ">= N of the source files" threshold from
-// the promo-code rule. 2 today; kept as a constant rather than a
-// hardcoded literal in the merge logic so the rule reads as data, not
-// magic numbers.
 const requiredFileCount = 2
-
-// indexMagic identifies the binary index format written by BuildIndex
-// and read by LoadIndex.
 const indexMagic = "CPX1"
 
-// key128 is a SHA-256-truncated 128-bit fingerprint of a coupon code.
-//
-// A cheaper 64-bit key was the first instinct, but at the observed
-// scale (~3*10^8 candidate lines across the three files) the
-// birthday-bound collision probability for a 64-bit hash is roughly
-// N^2/2^65 ~= 1-in-4000 — too risky for something that gates a real
-// discount. 128 bits via crypto/sha256 (stdlib, no new dependency)
-// drops that to effectively zero, at a cost that's only paid once,
-// offline, during the index build.
+// A 64-bit hash's birthday-bound collision odds are non-trivial at the
+// ~3*10^8 candidate lines here, too risky for something gating a real
+// discount, so this is 128 bits.
 type key128 [16]byte
 
 func hashCode(code string) key128 {
@@ -41,16 +28,10 @@ func hashCode(code string) key128 {
 	return k
 }
 
-// Index is a Validator backed by a sorted, deduplicated set of the
-// 128-bit fingerprints of every code found in at least requiredFileCount
-// of the source files. Lookups are O(log n) binary search with no map
-// allocation.
 type Index struct {
-	keys []key128 // sorted ascending
+	keys []key128
 }
 
-// IsValid implements Validator: a code must satisfy the length
-// precondition and have its fingerprint present in the index.
 func (idx *Index) IsValid(code string) bool {
 	if !ValidLength(code) {
 		return false
@@ -62,14 +43,10 @@ func (idx *Index) IsValid(code string) bool {
 	return i < len(idx.keys) && idx.keys[i] == k
 }
 
-// Len reports how many distinct valid codes the index holds.
 func (idx *Index) Len() int { return len(idx.keys) }
 
 var _ Validator = (*Index)(nil)
 
-// Stats summarizes one BuildIndex run — the hard numbers that go in the
-// README as evidence for the "can this handle scale" question, rather
-// than a qualitative description of the approach.
 type Stats struct {
 	PerFileLines      []int64
 	PerFileCandidates []int
@@ -78,19 +55,9 @@ type Stats struct {
 	IndexBytes        int64
 }
 
-// BuildIndex streams each of the given gzip-compressed source files
-// exactly once, keeps only lines whose length is in the valid range,
-// and writes the sorted set of fingerprints appearing in at least
-// requiredFileCount of the files to outPath.
-//
-// Design note: an earlier version of this used a single
-// map[key128]uint8 accumulating bits across all files. At this data's
-// real scale (~3*10^8 total candidate lines) that map's per-entry
-// overhead would cost tens of GB of RAM — measured against the actual
-// downloaded files, not assumed. Collecting each file's candidates into
-// its own sorted, deduplicated slice (16 bytes/entry, no map overhead)
-// and doing a k-way merge instead bounds memory to roughly the sum of
-// each file's own unique candidate count, with no per-entry map tax.
+// Each file's candidates are hashed, sorted, and deduplicated into
+// their own slice and merged, rather than accumulated into one shared
+// map: at ~3*10^8 lines a map's per-entry overhead costs tens of GB.
 func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, error) {
 	if len(paths) < requiredFileCount {
 		return Stats{}, fmt.Errorf("coupon: need at least %d source files, got %d", requiredFileCount, len(paths))
@@ -143,9 +110,6 @@ func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, err
 	return stats, nil
 }
 
-// collectFileHashes streams path (gzip-compressed), hashes every
-// length-valid line, and returns the sorted, deduplicated set of
-// fingerprints plus the total line count.
 func collectFileHashes(logger *slog.Logger, fileIndex int, path string) ([]key128, int64, error) {
 	var hashes []key128
 	lines, err := scanFile(logger, fileIndex, path, func(code string) {
@@ -173,17 +137,8 @@ func dedupeSorted(s []key128) []key128 {
 	return s[:j+1]
 }
 
-// scanFile decompresses path and calls onCandidate for every line whose
-// length falls in the valid range. gzip.Reader defaults to
-// Multistream(true), so a source file made of several concatenated
-// gzip members (as Oolio's coupon files are) decodes transparently.
-//
-// A truncated or corrupted tail — the exact failure mode hit while
-// downloading these files over an unreliable connection during
-// development — stops the scan early but does not fail the build: what
-// was read cleanly up to that point is still valid input, so it's kept
-// and the truncation is logged as a warning instead of aborting the
-// whole index.
+// A truncated or corrupted tail logs a warning and keeps what was read
+// cleanly instead of failing the whole build.
 func scanFile(logger *slog.Logger, fileIndex int, path string, onCandidate func(code string)) (int64, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -198,7 +153,7 @@ func scanFile(logger *slog.Logger, fileIndex int, path string, onCandidate func(
 	defer gz.Close()
 
 	scanner := bufio.NewScanner(gz)
-	scanner.Buffer(make([]byte, 64*1024), 1<<20) // generous but bounded; real lines are 8-10 bytes
+	scanner.Buffer(make([]byte, 64*1024), 1<<20)
 
 	var lines int64
 	for scanner.Scan() {
@@ -219,9 +174,6 @@ func scanFile(logger *slog.Logger, fileIndex int, path string, onCandidate func(
 	return lines, nil
 }
 
-// mergeAtLeastN performs a k-way merge across sorted, deduplicated
-// fingerprint sets and returns the sorted union of every fingerprint
-// present in at least n of them.
 func mergeAtLeastN(sets [][]key128, n int) []key128 {
 	idxs := make([]int, len(sets))
 	var result []key128
@@ -239,7 +191,7 @@ func mergeAtLeastN(sets [][]key128, n int) []key128 {
 			}
 		}
 		if minSet == -1 {
-			break // every set exhausted
+			break
 		}
 
 		count := 0
@@ -272,7 +224,6 @@ func writeIndex(w *os.File, keys []key128) error {
 	return bw.Flush()
 }
 
-// LoadIndex reads a binary index file written by BuildIndex.
 func LoadIndex(path string) (*Index, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

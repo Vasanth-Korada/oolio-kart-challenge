@@ -1,4 +1,3 @@
-// Command server runs the Oolio food-ordering API.
 package main
 
 import (
@@ -69,6 +68,7 @@ func run() error {
 		MetricsHandler: metrics.Handler(),
 		Logger:         logger,
 		APIKey:         cfg.APIKey,
+		CORSOrigin:     cfg.CORSOrigin,
 	})
 
 	srv := &http.Server{
@@ -106,11 +106,6 @@ func run() error {
 	return nil
 }
 
-// loadCouponValidator loads the pre-built coupon index. A missing index
-// (e.g. `make build-coupon-index` hasn't run yet) is logged as a
-// warning rather than a fatal error: every endpoint except
-// coupon-carrying orders keeps working, which is a better failure mode
-// for local/first-run setups than refusing to start at all.
 func loadCouponValidator(path string, logger *slog.Logger) (coupon.Validator, error) {
 	idx, err := coupon.LoadIndex(path)
 	if err != nil {

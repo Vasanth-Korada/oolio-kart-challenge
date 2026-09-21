@@ -10,8 +10,6 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/observability"
 )
 
-// Middleware is the standard net/http decorator shape used throughout
-// this package, composed with chain().
 type Middleware func(http.Handler) http.Handler
 
 func chain(h http.Handler, mws ...Middleware) http.Handler {
@@ -21,9 +19,6 @@ func chain(h http.Handler, mws ...Middleware) http.Handler {
 	return h
 }
 
-// statusRecorder captures the status code written by the wrapped
-// handler so Logging/metrics middleware can observe it — net/http's
-// ResponseWriter doesn't expose what was already written.
 type statusRecorder struct {
 	http.ResponseWriter
 	status int
@@ -34,10 +29,6 @@ func (r *statusRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
-// RequestID assigns a request id (from X-Request-Id if the caller
-// supplied one, else generated) to the request context and response
-// header, so it can be correlated across logs, traces, and client
-// support tickets.
 func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("X-Request-Id")
@@ -49,10 +40,6 @@ func RequestID(next http.Handler) http.Handler {
 	})
 }
 
-// Logging logs one structured line per request (method, path, status,
-// duration, request id) and attaches a request-scoped logger to the
-// context for handlers/services to use, so every log line downstream of
-// a request carries the same request_id without threading it manually.
 func Logging(base *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -62,20 +49,18 @@ func Logging(base *slog.Logger) Middleware {
 
 			next.ServeHTTP(rec, r.WithContext(withLogger(r.Context(), reqLogger)))
 
+			// duration_ms, not slog.Duration: the JSON handler renders
+			// slog.Duration as raw nanoseconds, hard to eyeball.
 			reqLogger.Info("http request",
 				slog.String("method", r.Method),
 				slog.String("path", r.URL.Path),
 				slog.Int("status", rec.status),
-				slog.Duration("duration", time.Since(start)),
+				slog.Float64("duration_ms", float64(time.Since(start).Microseconds())/1000.0),
 			)
 		})
 	}
 }
 
-// Metrics records per-request counters/histograms via the given
-// recorder. Kept behind the observability.MetricsRecorder interface so
-// the backend (Prometheus today) can change without touching this
-// middleware or the handlers.
 func Metrics(recorder observability.MetricsRecorder) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -93,9 +78,6 @@ func Metrics(recorder observability.MetricsRecorder) Middleware {
 	}
 }
 
-// Recover turns a panic in any downstream handler into a 500 response
-// instead of crashing the process, logging the panic with a stack trace
-// for diagnosis.
 func Recover(base *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -112,9 +94,29 @@ func Recover(base *slog.Logger) Middleware {
 	}
 }
 
-// APIKeyAuth enforces the OpenAPI spec's api_key security scheme:
-// missing header -> 401, present but wrong -> 403. The comparison is
-// constant-time so response timing can't be used to brute-force the key.
+func CORS(allowedOrigin string) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if origin != "" {
+				if allowedOrigin == "*" {
+					w.Header().Set("Access-Control-Allow-Origin", "*")
+				} else if origin == allowedOrigin {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Vary", "Origin")
+				}
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, api_key")
+			}
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func APIKeyAuth(expected string) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

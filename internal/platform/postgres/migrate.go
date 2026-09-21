@@ -10,10 +10,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Migrate applies every .sql file in migrationsFS, in filename order,
-// that isn't already recorded in schema_migrations. Each migration runs
-// in its own transaction, so a failure partway through never leaves a
-// migration half-applied.
 func Migrate(ctx context.Context, pool *pgxpool.Pool, migrationsFS fs.FS) error {
 	if _, err := pool.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (

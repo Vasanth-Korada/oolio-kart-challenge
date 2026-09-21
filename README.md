@@ -7,13 +7,17 @@ storage, and a scale-conscious design.
 ## Quickstart
 
 ```bash
-make fetch-coupons        # downloads the 3 raw coupon files (~2.1GB, not committed)
-make build-coupon-index   # builds coupons/coupons.idx (committed, ~136 bytes)
-make docker-up            # postgres + backend
+make docker-up   # postgres + backend, using the already-built coupons/coupons.idx
 ```
 
 The server listens on `:8080`. `POST /order` requires an `api_key: apitest`
-header (configurable via `API_KEY`).
+header (configurable via `API_KEY`). `coupons/coupons.idx` is committed
+(136 bytes), so this is all that's needed to run it — `make fetch-coupons`
+and `make build-coupon-index` are only for rebuilding that index yourself
+from the original ~2.1GB source files (not committed; see below).
+
+Want the UI too? See [oolio-kart-challenge-web](https://github.com/Vasanth-Korada/oolio-kart-challenge-web)
+— point it at this server with `VITE_API_BASE_URL=http://localhost:8080`.
 
 ## Architecture
 
@@ -78,6 +82,36 @@ takes ~4.5 minutes on a single core, one-time.
 Verified against the assignment's own examples, using the real data:
 `HAPPYHRS` and `FIFTYOFF` are valid, `SUPER100` is not (`internal/coupon/index_real_data_test.go`).
 
+**Alternatives considered and rejected:**
+
+- *Bloom filter instead of an exact index.* Rejected — a Bloom filter's
+  false positives would mean occasionally granting a real discount for a
+  code that was never actually valid. Fine for a cache warm-up check,
+  not for something that gates money.
+- *Reprocessing the 3 files on every server boot.* Rejected — it's
+  ~2.1GB of compressed, barely-compressible (near-random) data; paying
+  that decompression + scan cost on every deploy for data that never
+  changes is wasted work. Build once, load a 136-byte file forever after.
+- *64-bit fingerprints.* Rejected once the real scale was known — see
+  above. The math (not just intuition) drove the choice of 128 bits.
+- *A relational "coupon_codes" table in Postgres, checked with a `WHERE
+  code = ANY(...)` per order.* Would work, but turns every order into an
+  extra round trip to a table that's static after the one-time import,
+  for data that's cheaper to hold as an in-process sorted slice than to
+  re-fetch over the network per request.
+
+**At 10x or 100x this scale:** the current single-process build (~4.5
+minutes for ~313M lines) would become the next bottleneck well before
+the 136-byte index itself would. The fix is embarrassingly parallel —
+shard each file's scan across goroutines (or machines) by byte range,
+since gzip's multistream members are natural split points, then merge
+the per-shard sorted slices instead of one linear pass. The index
+itself would stay small (it scales with the *overlap* between files,
+not their size) unless the valid-coupon pool itself grew by orders of
+magnitude, at which point the sorted-slice binary search would move to
+a proper on-disk structure (e.g. an LSM-backed KV store) instead of an
+in-memory slice.
+
 ## API
 
 | Method & path | Notes |
@@ -91,8 +125,34 @@ effect here is binary — it gates the order, it doesn't compute a discount.
 Real prices are still resolved and stored server-side, so adding a
 `subtotal`/`discountApplied` field is a small, spec-compatible next step.
 
+## Testing
+
+One test file per layer, table-driven with `t.Run` sub-tests throughout:
+
+| Layer | Where | Covers |
+| --- | --- | --- |
+| Repository | `*_repository_test.go` (product, order) | In-memory repos directly; `*_integration_test.go` (build tag `integration`) exercise the real Postgres repos against a live DB |
+| Service | `internal/{product,order}/service_test.go` | Item validation, pricing, coupon checks, persistence — with fakes for the collaborators |
+| Handler | `internal/httpapi/{product,order}_handler_test.go` | Status codes and error mapping in isolation, with a fake service |
+| Contract | `internal/httpapi/contract_test.go` | Every endpoint's request/response validated against `api/openapi.yaml` via [kin-openapi](https://github.com/getkin/kin-openapi) — proof of spec conformance, not an assertion of it |
+| Coupon | `internal/coupon/*_test.go` | Length boundaries, a synthetic fixture, and the real files' documented examples (skipped if `coupons.idx` isn't built) |
+
+`make test` runs everything except the Postgres integration tests; `make integration-test` runs those against `DATABASE_URL` (e.g. the docker-compose Postgres). CI (`.github/workflows/ci.yml`) runs gofmt, vet, build, and `make test` on every push/PR.
+
 ## Status
 
-Foundation, coupon validation, and the product/order domain + Postgres layer
-are in place. Docker Compose wiring, the React UI, CI, and final polish are
-in progress — see commit history.
+Complete: interface-first product/order/coupon layers (Postgres +
+in-memory implementations behind each interface), stdlib HTTP with
+api-key auth/structured logging/Prometheus metrics/CORS, Docker Compose,
+GitHub Actions CI, and OpenAPI contract tests — all green, verified
+against a clean `docker compose up --build`, not just unit tests.
+
+A minimal React frontend lives in a
+[separate repository](https://github.com/Vasanth-Korada/oolio-kart-challenge-web)
+per the assignment's "feel free to explore" note on the UI.
+
+See the commit history for how the design evolved as real data and real
+runs surfaced things a plan alone wouldn't have — e.g. the coupon index
+moving from a single map to per-file sorted slices once the real ~313M-line
+scale was measured, and the fetch script's retry logic existing because a
+download genuinely stalled mid-transfer during development.

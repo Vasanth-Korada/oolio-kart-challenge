@@ -1,0 +1,7 @@
+.git
+coupons/raw
+web/node_modules
+web/dist
+*.md
+.idea
+.vscode

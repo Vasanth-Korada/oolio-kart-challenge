@@ -7,21 +7,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// PostgresRepository is the production Repository implementation. It
-// writes the order header and its line items in a single transaction so
-// a partial order can never be observed.
 type PostgresRepository struct {
 	pool *pgxpool.Pool
 }
 
-// NewPostgresRepository builds a Repository backed by Postgres.
 func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{pool: pool}
 }
 
 func (r *PostgresRepository) Create(ctx context.Context, o Order) (Order, error) {
 	err := pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
-		// Stored as NULL, not "", when no coupon was applied.
 		var couponCode *string
 		if o.CouponCode != "" {
 			couponCode = &o.CouponCode
@@ -56,5 +51,4 @@ func (r *PostgresRepository) Create(ctx context.Context, o Order) (Order, error)
 	return o, nil
 }
 
-// compile-time check that PostgresRepository satisfies Repository.
 var _ Repository = (*PostgresRepository)(nil)
