@@ -13,14 +13,14 @@ import (
 
 func writeGzipLines(t *testing.T, path string, lines []string) {
 	t.Helper()
-	f, err := os.Create(path)
+	f, err := os.Create(path) //nolint:gosec // path is t.TempDir()-derived, test-only
 	if err != nil {
 		t.Fatalf("create %s: %v", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	gw := gzip.NewWriter(f)
-	defer gw.Close()
+	defer func() { _ = gw.Close() }()
 	for _, l := range lines {
 		if _, err := io.WriteString(gw, l+"\n"); err != nil {
 			t.Fatalf("write line: %v", err)

@@ -1,4 +1,4 @@
-.PHONY: build test integration-test vet fmt run fetch-coupons build-coupon-index docker-up docker-down
+.PHONY: build test integration-test vet lint fmt run fetch-coupons build-coupon-index docker-up docker-down
 
 build:
 	go build ./...
@@ -11,6 +11,9 @@ integration-test:
 
 vet:
 	go vet ./...
+
+lint:
+	golangci-lint run --build-tags=integration ./...
 
 fmt:
 	gofmt -l .

@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -92,20 +93,23 @@ func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, err
 	valid := mergeAtLeastN(sets, requiredFileCount)
 	stats.ValidCodes = len(valid)
 
-	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o750); err != nil {
 		return Stats{}, fmt.Errorf("coupon: mkdir for %s: %w", outPath, err)
 	}
-	f, err := os.Create(outPath)
+	f, err := os.Create(outPath) //nolint:gosec // outPath is an operator-supplied CLI flag (cmd/buildindex), not user input
 	if err != nil {
 		return Stats{}, fmt.Errorf("coupon: create %s: %w", outPath, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }() // safety net for early returns; the happy path closes and checks explicitly below
 
 	if err := writeIndex(f, valid); err != nil {
 		return Stats{}, fmt.Errorf("coupon: write index: %w", err)
 	}
 	if info, err := f.Stat(); err == nil {
 		stats.IndexBytes = info.Size()
+	}
+	if err := f.Close(); err != nil {
+		return Stats{}, fmt.Errorf("coupon: close %s: %w", outPath, err)
 	}
 	return stats, nil
 }
@@ -140,17 +144,17 @@ func dedupeSorted(s []key128) []key128 {
 // A truncated or corrupted tail logs a warning and keeps what was read
 // cleanly instead of failing the whole build.
 func scanFile(logger *slog.Logger, fileIndex int, path string, onCandidate func(code string)) (int64, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // path is an operator-supplied CLI flag (cmd/buildindex), not user input
 	if err != nil {
 		return 0, fmt.Errorf("coupon: open %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }() // read-only handle; nothing buffered to lose on close error
 
 	gz, err := gzip.NewReader(f)
 	if err != nil {
 		return 0, fmt.Errorf("coupon: gzip reader for %s: %w", path, err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 
 	scanner := bufio.NewScanner(gz)
 	scanner.Buffer(make([]byte, 64*1024), 1<<20)
@@ -209,9 +213,13 @@ func mergeAtLeastN(sets [][]key128, n int) []key128 {
 }
 
 func writeIndex(w *os.File, keys []key128) error {
+	if len(keys) > math.MaxUint32 {
+		return fmt.Errorf("coupon: %d valid codes exceeds the uint32 index header limit", len(keys))
+	}
+
 	var header [8]byte
 	copy(header[0:4], indexMagic)
-	binary.BigEndian.PutUint32(header[4:8], uint32(len(keys)))
+	binary.BigEndian.PutUint32(header[4:8], uint32(len(keys))) //nolint:gosec // bounds-checked above
 	if _, err := w.Write(header[:]); err != nil {
 		return err
 	}
@@ -225,7 +233,7 @@ func writeIndex(w *os.File, keys []key128) error {
 }
 
 func LoadIndex(path string) (*Index, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // path is server config (COUPON_INDEX_PATH), not user input
 	if err != nil {
 		return nil, fmt.Errorf("coupon: read index %s: %w", path, err)
 	}

@@ -142,7 +142,7 @@ One test file per layer, table-driven with `t.Run` sub-tests throughout:
 | Contract | `internal/httpapi/contract_test.go` | Every endpoint's request/response validated against `api/openapi.yaml` via [kin-openapi](https://github.com/getkin/kin-openapi) — proof of spec conformance, not an assertion of it |
 | Coupon | `internal/coupon/*_test.go` | Length boundaries, a synthetic fixture, and the real files' documented examples (skipped if `coupons.idx` isn't built) |
 
-`make test` runs everything except the Postgres integration tests; `make integration-test` runs those against `DATABASE_URL` (e.g. the docker-compose Postgres). CI (`.github/workflows/ci.yml`) runs gofmt, vet, build, and `make test` on every push/PR.
+`make test` runs everything except the Postgres integration tests; `make integration-test` runs those against `DATABASE_URL` (e.g. the docker-compose Postgres). CI (`.github/workflows/ci.yml`) runs gofmt, vet, [golangci-lint](https://golangci-lint.run/) (`.golangci.yml` — errcheck, staticcheck, unused, gosec, and resource-leak checks; a curated set chosen for real bug/security signal, not a maximal "every linter on" dump), build, and `make test` on every push/PR.
 
 ## Status
 
