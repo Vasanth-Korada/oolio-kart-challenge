@@ -79,6 +79,36 @@ takes ~4.5 minutes on a single core, one-time.
 Verified against the assignment's own examples, using the real data:
 `HAPPYHRS` and `FIFTYOFF` are valid, `SUPER100` is not (`internal/coupon/index_real_data_test.go`).
 
+**Alternatives considered and rejected:**
+
+- *Bloom filter instead of an exact index.* Rejected — a Bloom filter's
+  false positives would mean occasionally granting a real discount for a
+  code that was never actually valid. Fine for a cache warm-up check,
+  not for something that gates money.
+- *Reprocessing the 3 files on every server boot.* Rejected — it's
+  ~2.1GB of compressed, barely-compressible (near-random) data; paying
+  that decompression + scan cost on every deploy for data that never
+  changes is wasted work. Build once, load a 136-byte file forever after.
+- *64-bit fingerprints.* Rejected once the real scale was known — see
+  above. The math (not just intuition) drove the choice of 128 bits.
+- *A relational "coupon_codes" table in Postgres, checked with a `WHERE
+  code = ANY(...)` per order.* Would work, but turns every order into an
+  extra round trip to a table that's static after the one-time import,
+  for data that's cheaper to hold as an in-process sorted slice than to
+  re-fetch over the network per request.
+
+**At 10x or 100x this scale:** the current single-process build (~4.5
+minutes for ~313M lines) would become the next bottleneck well before
+the 136-byte index itself would. The fix is embarrassingly parallel —
+shard each file's scan across goroutines (or machines) by byte range,
+since gzip's multistream members are natural split points, then merge
+the per-shard sorted slices instead of one linear pass. The index
+itself would stay small (it scales with the *overlap* between files,
+not their size) unless the valid-coupon pool itself grew by orders of
+magnitude, at which point the sorted-slice binary search would move to
+a proper on-disk structure (e.g. an LSM-backed KV store) instead of an
+in-memory slice.
+
 ## API
 
 | Method & path | Notes |
@@ -92,8 +122,25 @@ effect here is binary — it gates the order, it doesn't compute a discount.
 Real prices are still resolved and stored server-side, so adding a
 `subtotal`/`discountApplied` field is a small, spec-compatible next step.
 
+## Testing
+
+- Unit tests: coupon length boundaries, a synthetic 3-file fixture with known
+  overlaps, and the real files' documented examples
+  (`internal/coupon/index_real_data_test.go` — skipped automatically if
+  `coupons.idx` isn't built yet)
+- **Contract tests** (`internal/httpapi/contract_test.go`): every endpoint's
+  request and response is validated against `api/openapi.yaml` itself via
+  [kin-openapi](https://github.com/getkin/kin-openapi), not just decoded into
+  our own structs — proof of spec conformance, not an assertion of it
+- CI (`.github/workflows/ci.yml`) runs gofmt, vet, build, and the full test
+  suite on every push/PR
+
 ## Status
 
-Foundation, coupon validation, and the product/order domain + Postgres layer
-are in place. Docker Compose wiring, the React UI, CI, and final polish are
-in progress — see commit history.
+Backend is feature-complete: interface-first product/order/coupon layers,
+Postgres storage, stdlib HTTP with auth/logging/metrics, Docker Compose,
+CI, and OpenAPI contract tests. A minimal React frontend lives in a
+[separate repository](https://github.com/Vasanth-Korada/oolio-kart-challenge-web)
+per the assignment's "feel free to explore" note on the UI — see that repo
+for setup. See commit history for how the design evolved as real data and
+real runs surfaced things a plan alone wouldn't have.
