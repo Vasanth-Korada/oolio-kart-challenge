@@ -69,6 +69,7 @@ func run() error {
 		MetricsHandler: metrics.Handler(),
 		Logger:         logger,
 		APIKey:         cfg.APIKey,
+		CORSOrigin:     cfg.CORSOrigin,
 	})
 
 	srv := &http.Server{

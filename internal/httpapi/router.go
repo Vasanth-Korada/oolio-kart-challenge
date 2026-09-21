@@ -18,6 +18,7 @@ type RouterDeps struct {
 	MetricsHandler http.Handler // e.g. promhttp.Handler(); nil disables /metrics
 	Logger         *slog.Logger
 	APIKey         string
+	CORSOrigin     string // "" disables CORS headers entirely
 }
 
 // NewRouter builds the full HTTP handler: routes plus the middleware
@@ -45,10 +46,14 @@ func NewRouter(deps RouterDeps) http.Handler {
 		recorder = observability.NoOp{}
 	}
 
-	return chain(mux,
+	mws := []Middleware{
 		RequestID,
 		Recover(deps.Logger),
 		Logging(deps.Logger),
 		Metrics(recorder),
-	)
+	}
+	if deps.CORSOrigin != "" {
+		mws = append(mws, CORS(deps.CORSOrigin))
+	}
+	return chain(mux, mws...)
 }

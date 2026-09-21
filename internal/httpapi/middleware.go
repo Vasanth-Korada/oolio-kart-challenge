@@ -116,6 +116,34 @@ func Recover(base *slog.Logger) Middleware {
 	}
 }
 
+// CORS allows cross-origin requests from allowedOrigin — needed because
+// the React frontend lives in its own repo/origin, separate from this
+// API. allowedOrigin "*" reflects any request origin (fine for this
+// assignment's demo purposes); a real deployment would pin it to the
+// frontend's actual origin instead.
+func CORS(allowedOrigin string) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if origin != "" {
+				if allowedOrigin == "*" {
+					w.Header().Set("Access-Control-Allow-Origin", "*")
+				} else if origin == allowedOrigin {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Vary", "Origin")
+				}
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, api_key")
+			}
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // APIKeyAuth enforces the OpenAPI spec's api_key security scheme:
 // missing header -> 401, present but wrong -> 403. The comparison is
 // constant-time so response timing can't be used to brute-force the key.
