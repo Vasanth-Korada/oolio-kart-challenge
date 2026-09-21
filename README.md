@@ -128,16 +128,17 @@ Real prices are still resolved and stored server-side, so adding a
 
 ## Testing
 
-- Unit tests: coupon length boundaries, a synthetic 3-file fixture with known
-  overlaps, and the real files' documented examples
-  (`internal/coupon/index_real_data_test.go` — skipped automatically if
-  `coupons.idx` isn't built yet)
-- **Contract tests** (`internal/httpapi/contract_test.go`): every endpoint's
-  request and response is validated against `api/openapi.yaml` itself via
-  [kin-openapi](https://github.com/getkin/kin-openapi), not just decoded into
-  our own structs — proof of spec conformance, not an assertion of it
-- CI (`.github/workflows/ci.yml`) runs gofmt, vet, build, and the full test
-  suite on every push/PR
+One test file per layer, table-driven with `t.Run` sub-tests throughout:
+
+| Layer | Where | Covers |
+| --- | --- | --- |
+| Repository | `*_repository_test.go` (product, order) | In-memory repos directly; `*_integration_test.go` (build tag `integration`) exercise the real Postgres repos against a live DB |
+| Service | `internal/{product,order}/service_test.go` | Item validation, pricing, coupon checks, persistence — with fakes for the collaborators |
+| Handler | `internal/httpapi/{product,order}_handler_test.go` | Status codes and error mapping in isolation, with a fake service |
+| Contract | `internal/httpapi/contract_test.go` | Every endpoint's request/response validated against `api/openapi.yaml` via [kin-openapi](https://github.com/getkin/kin-openapi) — proof of spec conformance, not an assertion of it |
+| Coupon | `internal/coupon/*_test.go` | Length boundaries, a synthetic fixture, and the real files' documented examples (skipped if `coupons.idx` isn't built) |
+
+`make test` runs everything except the Postgres integration tests; `make integration-test` runs those against `DATABASE_URL` (e.g. the docker-compose Postgres). CI (`.github/workflows/ci.yml`) runs gofmt, vet, build, and `make test` on every push/PR.
 
 ## Status
 
