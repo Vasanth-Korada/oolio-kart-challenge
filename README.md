@@ -8,13 +8,17 @@ assignment calls out by name: promo-code validation.
 ## Quickstart
 
 ```bash
-make fetch-coupons        # downloads the 3 raw coupon files (~2.1GB, not committed)
-make build-coupon-index   # builds coupons/coupons.idx (committed, ~136 bytes)
-make docker-up            # postgres + backend
+make docker-up   # postgres + backend, using the already-built coupons/coupons.idx
 ```
 
 The server listens on `:8080`. `POST /order` requires an `api_key: apitest`
-header (configurable via `API_KEY`).
+header (configurable via `API_KEY`). `coupons/coupons.idx` is committed
+(136 bytes), so this is all that's needed to run it — `make fetch-coupons`
+and `make build-coupon-index` are only for rebuilding that index yourself
+from the original ~2.1GB source files (not committed; see below).
+
+Want the UI too? See [oolio-kart-challenge-web](https://github.com/Vasanth-Korada/oolio-kart-challenge-web)
+— point it at this server with `VITE_API_BASE_URL=http://localhost:8080`.
 
 ## Architecture
 
@@ -137,10 +141,18 @@ Real prices are still resolved and stored server-side, so adding a
 
 ## Status
 
-Backend is feature-complete: interface-first product/order/coupon layers,
-Postgres storage, stdlib HTTP with auth/logging/metrics, Docker Compose,
-CI, and OpenAPI contract tests. A minimal React frontend lives in a
+Complete: interface-first product/order/coupon layers (Postgres +
+in-memory implementations behind each interface), stdlib HTTP with
+api-key auth/structured logging/Prometheus metrics/CORS, Docker Compose,
+GitHub Actions CI, and OpenAPI contract tests — all green, verified
+against a clean `docker compose up --build`, not just unit tests.
+
+A minimal React frontend lives in a
 [separate repository](https://github.com/Vasanth-Korada/oolio-kart-challenge-web)
-per the assignment's "feel free to explore" note on the UI — see that repo
-for setup. See commit history for how the design evolved as real data and
-real runs surfaced things a plan alone wouldn't have.
+per the assignment's "feel free to explore" note on the UI.
+
+See the commit history for how the design evolved as real data and real
+runs surfaced things a plan alone wouldn't have — e.g. the coupon index
+moving from a single map to per-file sorted slices once the real ~313M-line
+scale was measured, and the fetch script's retry logic existing because a
+download genuinely stalled mid-transfer during development.
