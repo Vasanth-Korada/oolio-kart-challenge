@@ -233,6 +233,7 @@ Not part of the OpenAPI spec, standard production hygiene:
 - **UUID v4 order IDs**, not sequential integers. Sequential ids let anyone enumerate `/order/4`, `/order/5`, ... (an IDOR risk). `crypto/rand` makes guessing infeasible.
 - **Package-by-feature, not package-by-layer.** `internal/product` and `internal/order` each own their full vertical slice, instead of a shared `handler/`/`service/`/`repository/` split. Keeps a feature's blast radius to one package, avoids Go's import-cycle friction between layers.
 - **Sentinel errors, `errors.Is`, never string-matched.** Package-level `errors.New` values, mapped to status codes by identity. Safe across wrapping and refactors.
+- **Compose credentials are overridable, not hardcoded-only.** `docker-compose.yml` uses `${VAR:-oolio}` syntax with a `deploy/.env.example` companion, so the plaintext local-dev defaults visible in the file are just defaults, not the only option. A real deployment would inject credentials from a secrets manager at deploy time, out of scope for a local dev compose file, but the override path exists rather than being hardcoded-only.
 
 ---
 

@@ -2,15 +2,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: oolio
-      POSTGRES_PASSWORD: oolio
-      POSTGRES_DB: oolio
+      POSTGRES_USER: ${POSTGRES_USER:-oolio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oolio}
+      POSTGRES_DB: ${POSTGRES_DB:-oolio}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U oolio -d oolio"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-oolio} -d ${POSTGRES_DB:-oolio}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -23,8 +23,8 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://oolio:oolio@postgres:5432/oolio?sslmode=disable
-      API_KEY: apitest
+      DATABASE_URL: postgres://${POSTGRES_USER:-oolio}:${POSTGRES_PASSWORD:-oolio}@postgres:5432/${POSTGRES_DB:-oolio}?sslmode=disable
+      API_KEY: ${API_KEY:-apitest}
       PORT: "8080"
       LOG_LEVEL: info
       COUPON_INDEX_PATH: coupons/coupons.idx
