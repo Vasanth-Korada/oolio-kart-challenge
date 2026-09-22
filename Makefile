@@ -7,7 +7,7 @@ test:
 	go test ./... -race -count=1
 
 integration-test:
-	go test -tags integration ./... -run TestPostgresRepository -v
+	go test -tags integration ./... -run TestDBRepository -v
 
 vet:
 	go vet ./...

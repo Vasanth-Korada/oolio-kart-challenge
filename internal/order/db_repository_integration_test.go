@@ -14,7 +14,7 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/migrations"
 )
 
-func TestPostgresRepository_Create(t *testing.T) {
+func TestDBRepository_Create(t *testing.T) {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
@@ -31,7 +31,7 @@ func TestPostgresRepository_Create(t *testing.T) {
 		t.Fatalf("migrate: %v", err)
 	}
 
-	repo := order.NewPostgresRepository(pool)
+	repo := order.NewDBRepository(pool)
 	o := order.Order{
 		ID:         idgen.NewUUID(),
 		Items:      []order.Item{{ProductID: "1", Quantity: 2}},

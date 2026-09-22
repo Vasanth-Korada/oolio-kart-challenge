@@ -7,15 +7,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type PostgresRepository struct {
+type DBRepository struct {
 	pool *pgxpool.Pool
 }
 
-func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
-	return &PostgresRepository{pool: pool}
+func NewDBRepository(pool *pgxpool.Pool) *DBRepository {
+	return &DBRepository{pool: pool}
 }
 
-func (r *PostgresRepository) Create(ctx context.Context, o Order) (Order, error) {
+func (r *DBRepository) Create(ctx context.Context, o Order) (Order, error) {
 	err := pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
 		var couponCode *string
 		if o.CouponCode != "" {
@@ -51,4 +51,4 @@ func (r *PostgresRepository) Create(ctx context.Context, o Order) (Order, error)
 	return o, nil
 }
 
-var _ Repository = (*PostgresRepository)(nil)
+var _ Repository = (*DBRepository)(nil)

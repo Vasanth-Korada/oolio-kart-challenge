@@ -52,10 +52,10 @@ func run() error {
 		return err
 	}
 
-	productRepo := product.NewPostgresRepository(pool)
+	productRepo := product.NewDBRepository(pool)
 	productService := product.NewService(productRepo, logger)
 
-	orderRepo := order.NewPostgresRepository(pool)
+	orderRepo := order.NewDBRepository(pool)
 	orderService := order.NewService(productService, couponValidator, orderRepo, logger)
 
 	metrics := observability.NewPrometheus()

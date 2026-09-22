@@ -12,7 +12,7 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/migrations"
 )
 
-func TestPostgresRepository(t *testing.T) {
+func TestDBRepository(t *testing.T) {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
@@ -29,7 +29,7 @@ func TestPostgresRepository(t *testing.T) {
 		t.Fatalf("migrate: %v", err)
 	}
 
-	repo := product.NewPostgresRepository(pool)
+	repo := product.NewDBRepository(pool)
 
 	t.Run("List", func(t *testing.T) {
 		got, err := repo.List(ctx)
