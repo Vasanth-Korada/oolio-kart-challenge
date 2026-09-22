@@ -39,20 +39,25 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 // productId is spec'd as an integer, so a non-numeric id is a 400.
+// The parsed-and-reformatted value (not the raw path segment) is what
+// gets looked up, so "01" and "1" resolve to the same product instead
+// of "01" passing validation but missing the lookup.
 func (h *ProductHandler) Get(w http.ResponseWriter, r *http.Request) {
 	idParam := r.PathValue("id")
-	if _, err := strconv.ParseInt(idParam, 10, 64); err != nil {
+	parsedID, err := strconv.ParseInt(idParam, 10, 64)
+	if err != nil {
 		WriteError(w, http.StatusBadRequest, "invalid_id", "product id must be an integer")
 		return
 	}
+	canonicalID := strconv.FormatInt(parsedID, 10)
 
-	p, err := h.Service.Get(r.Context(), idParam)
+	p, err := h.Service.Get(r.Context(), canonicalID)
 	if err != nil {
 		if errors.Is(err, product.ErrNotFound) {
 			WriteError(w, http.StatusNotFound, "not_found", "product not found")
 			return
 		}
-		LoggerFromContext(r.Context(), nil).Error("failed to get product", "error", err, "product_id", idParam)
+		LoggerFromContext(r.Context(), nil).Error("failed to get product", "error", err, "product_id", canonicalID)
 		WriteError(w, http.StatusInternalServerError, "internal", "failed to fetch product")
 		return
 	}

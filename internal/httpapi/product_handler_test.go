@@ -97,3 +97,21 @@ func TestProductHandler_Get(t *testing.T) {
 		})
 	}
 }
+
+// TestProductHandler_Get_NormalizesLeadingZero guards a real bug: "01"
+// used to pass the integer-format check but miss the lookup, since the
+// repository is keyed by "1", not the raw path segment. The handler now
+// looks up the parsed-and-reformatted id, so "01" and "1" agree.
+func TestProductHandler_Get_NormalizesLeadingZero(t *testing.T) {
+	service := &fakeProductService{products: map[string]product.Product{"1": {ID: "1", Name: "Waffle"}}}
+	h := &httpapi.ProductHandler{Service: service}
+
+	req := httptest.NewRequest(http.MethodGet, "/product/01", nil)
+	req.SetPathValue("id", "01")
+	rec := httptest.NewRecorder()
+	h.Get(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200, body=%s", rec.Code, rec.Body.String())
+	}
+}

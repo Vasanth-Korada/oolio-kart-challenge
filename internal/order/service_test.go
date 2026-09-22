@@ -135,6 +135,42 @@ func TestPlaceOrder_Discount(t *testing.T) {
 	}
 }
 
+// TestPlaceOrder_MergesDuplicateProductIDs guards a real bug found by
+// testing the edge case directly: order_items has a composite
+// (order_id, product_id) primary key, so two line items for the same
+// product used to reach the database and fail with a constraint
+// violation, surfacing as a 500 instead of a clean result.
+func TestPlaceOrder_MergesDuplicateProductIDs(t *testing.T) {
+	svc, repo := newTestService(nil)
+
+	got, err := svc.PlaceOrder(context.Background(), order.CreateOrderRequest{
+		Items: []order.Item{
+			{ProductID: "1", Quantity: 1},
+			{ProductID: "1", Quantity: 2},
+		},
+	})
+	if err != nil {
+		t.Fatalf("PlaceOrder: %v", err)
+	}
+
+	if len(got.Items) != 1 {
+		t.Fatalf("len(Items) = %d, want 1 (merged)", len(got.Items))
+	}
+	if got.Items[0].Quantity != 3 {
+		t.Fatalf("merged quantity = %d, want 3", got.Items[0].Quantity)
+	}
+
+	wantSubtotal := product.SeedProducts()[0].Price * 3
+	if got.Subtotal != wantSubtotal {
+		t.Fatalf("Subtotal = %v, want %v", got.Subtotal, wantSubtotal)
+	}
+
+	persisted := repo.All()
+	if len(persisted) != 1 || len(persisted[0].Items) != 1 {
+		t.Fatalf("expected exactly one merged line item persisted, got %+v", persisted)
+	}
+}
+
 func TestPlaceOrder_IgnoresClientSuppliedPrice(t *testing.T) {
 	svc, _ := newTestService(nil)
 
