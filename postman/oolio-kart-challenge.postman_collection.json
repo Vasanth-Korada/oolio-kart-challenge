@@ -1,0 +1,448 @@
+{
+	"info": {
+		"_postman_id": "6dd0237a-e263-404e-b0a2-8a56a97a7af9",
+		"name": "Oolio Kart Challenge",
+		"description": "Food-ordering API from the Oolio advanced backend challenge. Import alongside the `local` environment and run `make docker-up` first.\n\nCovers every documented endpoint plus the error paths called out in the README (401/403/422), so the collection doubles as a runnable reference for the API's behavior.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Products",
+			"item": [
+				{
+					"name": "List Products",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 200', () => pm.response.to.have.status(200));",
+									"pm.test('response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/product",
+							"host": ["{{baseUrl}}"],
+							"path": ["product"]
+						},
+						"description": "No authentication required."
+					}
+				},
+				{
+					"name": "Get Product by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 200', () => pm.response.to.have.status(200));",
+									"pm.test('id matches request', () => pm.expect(pm.response.json().id).to.eql('1'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/product/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["product", ":id"],
+							"variable": [{"key": "id", "value": "1"}]
+						}
+					}
+				},
+				{
+					"name": "Get Product by ID - Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 404', () => pm.response.to.have.status(404));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/product/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["product", ":id"],
+							"variable": [{"key": "id", "value": "999"}]
+						},
+						"description": "productId 999 does not exist in the seeded catalog."
+					}
+				},
+				{
+					"name": "Get Product by ID - Invalid ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 400', () => pm.response.to.have.status(400));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/product/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["product", ":id"],
+							"variable": [{"key": "id", "value": "abc"}]
+						},
+						"description": "productId must parse as an integer."
+					}
+				}
+			]
+		},
+		{
+			"name": "Orders",
+			"item": [
+				{
+					"name": "Place Order - Valid Coupon",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 200', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('discount was applied', () => pm.expect(body.discount).to.be.above(0));",
+									"pm.test('total = subtotal - discount', () => pm.expect(body.total).to.eql(Math.round((body.subtotal - body.discount) * 100) / 100));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "api_key", "value": "{{apiKey}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    { \"productId\": \"1\", \"quantity\": 1 },\n    { \"productId\": \"9\", \"quantity\": 1 }\n  ],\n  \"couponCode\": \"HAPPYHRS\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["order"]
+						},
+						"description": "HAPPYHRS is one of the 8 codes that actually survive the coupon-index build; a flat 5% discount applies."
+					}
+				},
+				{
+					"name": "Place Order - No Coupon",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 200', () => pm.response.to.have.status(200));",
+									"pm.test('no discount applied', () => pm.expect(pm.response.json().discount).to.eql(0));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "api_key", "value": "{{apiKey}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    { \"productId\": \"1\", \"quantity\": 2 }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["order"]
+						}
+					}
+				},
+				{
+					"name": "Place Order - Duplicate Product IDs",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 200', () => pm.response.to.have.status(200));",
+									"pm.test('duplicate line items are merged', () => pm.expect(pm.response.json().items).to.have.lengthOf(1));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "api_key", "value": "{{apiKey}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    { \"productId\": \"1\", \"quantity\": 1 },\n    { \"productId\": \"1\", \"quantity\": 2 }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["order"]
+						},
+						"description": "Regression case for a real bug: the same productId sent twice is merged into one line item with a summed quantity, instead of hitting the order_items composite key."
+					}
+				},
+				{
+					"name": "Place Order - Missing API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 401', () => pm.response.to.have.status(401));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    { \"productId\": \"1\", \"quantity\": 1 }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["order"]
+						}
+					}
+				},
+				{
+					"name": "Place Order - Wrong API Key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 403', () => pm.response.to.have.status(403));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "api_key", "value": "wrong-key"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    { \"productId\": \"1\", \"quantity\": 1 }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["order"]
+						}
+					}
+				},
+				{
+					"name": "Place Order - Empty Items",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 422', () => pm.response.to.have.status(422));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "api_key", "value": "{{apiKey}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": []\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["order"]
+						}
+					}
+				},
+				{
+					"name": "Place Order - Unknown Product",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 422', () => pm.response.to.have.status(422));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "api_key", "value": "{{apiKey}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    { \"productId\": \"999\", \"quantity\": 1 }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["order"]
+						}
+					}
+				},
+				{
+					"name": "Place Order - Invalid Coupon",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 422', () => pm.response.to.have.status(422));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "api_key", "value": "{{apiKey}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    { \"productId\": \"1\", \"quantity\": 1 }\n  ],\n  \"couponCode\": \"BADCODE1\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["order"]
+						},
+						"description": "BADCODE1 is well-formed (8-10 chars) but does not appear in 2 of the 3 coupon source files."
+					}
+				}
+			]
+		},
+		{
+			"name": "Operational",
+			"item": [
+				{
+					"name": "Liveness",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/healthz",
+							"host": ["{{baseUrl}}"],
+							"path": ["healthz"]
+						},
+						"description": "Always 200 once the process is serving. Does not check Postgres."
+					}
+				},
+				{
+					"name": "Readiness",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/readyz",
+							"host": ["{{baseUrl}}"],
+							"path": ["readyz"]
+						},
+						"description": "503 if Postgres is unreachable."
+					}
+				},
+				{
+					"name": "Prometheus Metrics",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 200', () => pm.response.to.have.status(200));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/metrics",
+							"host": ["{{baseUrl}}"],
+							"path": ["metrics"]
+						},
+						"description": "Prometheus exposition format, labeled by route pattern rather than raw path to keep cardinality bounded."
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{"key": "baseUrl", "value": "http://localhost:8080"},
+		{"key": "apiKey", "value": "apitest"}
+	]
+}

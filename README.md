@@ -33,6 +33,8 @@ Server listens on `:8080`.
 
 Want the UI too? See [oolio-kart-challenge-web](https://github.com/Vasanth-Korada/oolio-kart-challenge-web). Point it at this server with `VITE_API_BASE_URL=http://localhost:8080`.
 
+**Postman:** import `postman/oolio-kart-challenge.postman_collection.json` and `postman/local.postman_environment.json`, covers every endpoint plus the 401/403/422/404/400 error paths, each request has an assertion. `make postman-test` runs it headless via [newman](https://github.com/postmanlabs/newman).
+
 ---
 
 ## Architecture
