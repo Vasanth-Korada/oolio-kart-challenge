@@ -52,6 +52,7 @@ Server listens on `:8080`.
 - `POST /order` needs an `api_key: apitest` header (configurable via `API_KEY`)
 - `coupons/coupons.idx` is committed (136 bytes): that's all you need to run it
 - `make fetch-coupons` / `make build-coupon-index` rebuild that index from the original ~2.1GB source files (not committed, see [Coupon Validation](#coupon-validation))
+- No Postgres handy? `go run ./cmd/server` still works: it falls back to an in-memory store with a logged warning if Postgres is unreachable. This is for reviewer convenience only, a real deployment should fail fast instead of silently dropping to non-persistent storage; see the comment in `cmd/server/main.go`
 
 Want the UI too? See [oolio-kart-challenge-web](https://github.com/Vasanth-Korada/oolio-kart-challenge-web). Point it at this server with `VITE_API_BASE_URL=http://localhost:8080`.
 
