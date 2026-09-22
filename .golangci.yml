@@ -8,7 +8,7 @@ run:
 linters:
   disable-all: true
   enable:
-    # Correctness — unchecked errors, ineffective assignments, dead code.
+    # Correctness: unchecked errors, ineffective assignments, dead code.
     - govet
     - errcheck
     - staticcheck

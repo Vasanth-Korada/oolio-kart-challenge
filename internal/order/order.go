@@ -25,7 +25,7 @@ type Item struct {
 }
 
 // Subtotal/Discount/Total and CouponCode are beyond the OpenAPI Order
-// schema (which has no pricing fields) — a documented extension so a
+// schema (which has no pricing fields): a documented extension so a
 // valid coupon has a visible effect, not just a pass/fail gate.
 type Order struct {
 	ID         string

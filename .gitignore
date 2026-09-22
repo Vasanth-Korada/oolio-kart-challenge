@@ -2,7 +2,7 @@
 /bin/
 /dist/
 
-# Coupon source files (large, fetched by `make fetch-coupons`) — the built index IS committed
+# Coupon source files (large, fetched by `make fetch-coupons`). The built index IS committed
 /coupons/raw/
 
 # Env

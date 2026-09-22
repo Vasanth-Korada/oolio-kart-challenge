@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Downloads the three coupon files into coupons/raw/, verifying final
-# size against Content-Length and resuming on mismatch — plain
+# size against Content-Length and resuming on mismatch. Plain
 # downloads of these ~700MB files can silently truncate mid-transfer.
 set -euo pipefail
 
@@ -37,7 +37,7 @@ for name in "${FILES[@]}"; do
   done
 
   if [ "$actual" -ne "$expected" ]; then
-    echo "$name: FAILED after $attempt attempts ($actual / $expected bytes) — rerun this script to resume" >&2
+    echo "$name: FAILED after $attempt attempts ($actual / $expected bytes), rerun this script to resume" >&2
     exit 1
   fi
 

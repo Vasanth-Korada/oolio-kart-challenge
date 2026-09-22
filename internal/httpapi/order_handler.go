@@ -28,7 +28,7 @@ type orderItemResponse struct {
 }
 
 // Subtotal/Discount/Total/CouponCode are beyond the OpenAPI Order
-// schema — see order.Order for why.
+// schema; see order.Order for why.
 type orderResponse struct {
 	ID         string              `json:"id"`
 	Items      []orderItemResponse `json:"items"`
