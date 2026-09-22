@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"golang.org/x/sync/errgroup"
 )
 
 const requiredFileCount = 2
@@ -72,22 +74,37 @@ func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, err
 		PerFileCandidates: make([]int, len(paths)),
 	}
 	sets := make([][]key128, len(paths))
+	lineCounts := make([]int64, len(paths))
 
+	// Each file is independent until the merge below, so they're hashed
+	// and sorted concurrently. Every goroutine owns a distinct index
+	// into sets/lineCounts, no shared state, no lock needed.
+	g := new(errgroup.Group)
 	for i, path := range paths {
-		hashes, lines, err := collectFileHashes(logger, i, path)
-		if err != nil {
-			return Stats{}, err
-		}
-		sets[i] = hashes
-		stats.PerFileLines[i] = lines
-		stats.PerFileCandidates[i] = len(hashes)
-		stats.TotalLines += lines
-		logger.Info("coupon: indexed source file",
-			slog.Int("file_index", i),
-			slog.String("path", path),
-			slog.Int64("lines", lines),
-			slog.Int("unique_candidates", len(hashes)),
-		)
+		g.Go(func() error {
+			hashes, lines, err := collectFileHashes(logger, i, path)
+			if err != nil {
+				return err
+			}
+			sets[i] = hashes
+			lineCounts[i] = lines
+			logger.Info("coupon: indexed source file",
+				slog.Int("file_index", i),
+				slog.String("path", path),
+				slog.Int64("lines", lines),
+				slog.Int("unique_candidates", len(hashes)),
+			)
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return Stats{}, err
+	}
+
+	for i := range paths {
+		stats.PerFileLines[i] = lineCounts[i]
+		stats.PerFileCandidates[i] = len(sets[i])
+		stats.TotalLines += lineCounts[i]
 	}
 
 	valid := mergeAtLeastN(sets, requiredFileCount)

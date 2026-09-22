@@ -123,7 +123,7 @@ The centerpiece of this assignment.
 | **Total** | **~2.1GB** | **313,087,705** | |
 
 - **8 valid codes** survive the rule, written to a **136-byte** index
-- Full build (~313M lines: hash, sort, merge) takes ~4.5 minutes, single core, one time
+- The 3 files are hashed and sorted concurrently (`errgroup`), independent until the merge step, one-time cost regardless
 
 **Why this design:**
 
@@ -248,7 +248,7 @@ Not part of the OpenAPI spec, standard production hygiene:
 | Products | Postgres, ~10 rows | Cache (Redis) in front of `product.Repository`; interface doesn't change |
 | Orders | Postgres, one transaction per order | Read replicas for reporting |
 | API server | Single stateless process | Horizontal: no in-process state beyond the coupon index, N replicas work unmodified |
-| Coupon index build | Single core, ~4.5 min for 313M lines | Embarrassingly parallel; scales with file *overlap*, not size |
+| Coupon index build | Per-file concurrent (`errgroup`), single process | Shard within each file by byte range (gzip multistream boundaries), or distribute across machines for many more source files |
 
 ---
 
