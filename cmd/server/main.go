@@ -39,6 +39,7 @@ func run() error {
 		productRepo product.Repository
 		orderRepo   order.Repository
 		dbPinger    httpapi.Pinger
+		storage     string
 	)
 
 	pool, err := postgres.Connect(ctx, cfg.DatabaseURL)
@@ -52,6 +53,7 @@ func run() error {
 		productRepo = product.NewMemoryRepository(product.SeedProducts())
 		orderRepo = order.NewMemoryRepository()
 		dbPinger = noopPinger{}
+		storage = "in-memory (fallback)"
 	} else {
 		defer pool.Close()
 		logger.Info("server: running migrations")
@@ -61,6 +63,7 @@ func run() error {
 		productRepo = product.NewDBRepository(pool)
 		orderRepo = order.NewDBRepository(pool)
 		dbPinger = pool
+		storage = "postgres"
 	}
 
 	couponValidator, err := loadCouponValidator(cfg.CouponIndexPath, logger)
@@ -74,7 +77,7 @@ func run() error {
 	router := httpapi.NewRouter(httpapi.RouterDeps{
 		Product:    &httpapi.ProductHandler{Service: productService},
 		Order:      &httpapi.OrderHandler{Service: orderService},
-		Health:     &httpapi.HealthHandler{DB: dbPinger},
+		Health:     &httpapi.HealthHandler{DB: dbPinger, Storage: storage},
 		Logger:     logger,
 		APIKey:     cfg.APIKey,
 		CORSOrigin: cfg.CORSOrigin,

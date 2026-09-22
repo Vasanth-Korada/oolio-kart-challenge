@@ -223,7 +223,7 @@ Not part of the OpenAPI spec, standard production hygiene:
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /healthz` | Liveness: always `200` once serving |
-| `GET /readyz` | Readiness: `503` if Postgres is unreachable |
+| `GET /readyz` | Readiness: `503` if a connected Postgres becomes unreachable; body also reports `"storage": "postgres"` or `"in-memory (fallback)"` so a caller can tell which mode is actually live |
 
 ---
 
