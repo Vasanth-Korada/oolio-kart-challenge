@@ -413,30 +413,6 @@
 						},
 						"description": "503 if Postgres is unreachable."
 					}
-				},
-				{
-					"name": "Prometheus Metrics",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"type": "text/javascript",
-								"exec": [
-									"pm.test('status is 200', () => pm.response.to.have.status(200));"
-								]
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/metrics",
-							"host": ["{{baseUrl}}"],
-							"path": ["metrics"]
-						},
-						"description": "Prometheus exposition format, labeled by route pattern rather than raw path to keep cardinality bounded."
-					}
 				}
 			]
 		}

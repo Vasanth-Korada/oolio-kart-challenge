@@ -51,7 +51,7 @@ flowchart TB
 
     subgraph Runtime["Runtime, every request"]
         direction LR
-        Client(["Client"]) -->|HTTP JSON| MW["Middleware chain<br/>RequestID -&gt; Recover -&gt; Logging -&gt; Metrics -&gt; CORS"]
+        Client(["Client"]) -->|HTTP JSON| MW["Middleware chain<br/>RequestID -&gt; Recover -&gt; Logging -&gt; CORS"]
         MW --> Mux["net/http.ServeMux"]
         Mux -->|"GET /product..."| PH["ProductHandler"]
         Mux -->|"POST /order (api_key)"| OH["OrderHandler"]
@@ -77,7 +77,7 @@ internal/httpapi   - stdlib net/http handlers, middleware, error envelope
 internal/product   - model, Service, Repository (Postgres + in-memory)
 internal/order     - model, Service (validation, pricing, coupon check), Repository
 internal/coupon    - Validator + the index build/query logic
-internal/platform  - postgres pool/migrations, structured logging, Prometheus metrics, id generation
+internal/platform  - postgres pool/migrations, structured logging, id generation
 migrations/        - SQL schema + product seed data
 ```
 
@@ -204,13 +204,12 @@ Not part of the OpenAPI spec, standard production hygiene:
 | --- | --- |
 | `GET /healthz` | Liveness: always `200` once serving |
 | `GET /readyz` | Readiness: `503` if Postgres is unreachable |
-| `GET /metrics` | Prometheus exposition, labeled by route pattern, not raw path |
 
 ---
 
 ## Design Decisions
 
-- **Stdlib-first, two exceptions.** No HTTP framework, no ORM. Go 1.22+'s `net/http.ServeMux` handles method and path-param routing natively. `pgx` (no built-in Postgres driver) and `prometheus/client_golang` (not worth hand-rolling) are the two deliberate dependencies.
+- **Stdlib-first, one exception.** No HTTP framework, no ORM. Go 1.22+'s `net/http.ServeMux` handles method and path-param routing natively. `pgx` (no built-in Postgres driver) is the one deliberate dependency for storage.
 - **UUID v4 order IDs**, not sequential integers. Sequential ids let anyone enumerate `/order/4`, `/order/5`, ... (an IDOR risk). `crypto/rand` makes guessing infeasible.
 - **Package-by-feature, not package-by-layer.** `internal/product` and `internal/order` each own their full vertical slice, instead of a shared `handler/`/`service/`/`repository/` split. Keeps a feature's blast radius to one package, avoids Go's import-cycle friction between layers.
 - **Sentinel errors, `errors.Is`, never string-matched.** Package-level `errors.New` values, mapped to status codes by identity. Safe across wrapping and refactors.
@@ -259,7 +258,7 @@ CI runs on every push: gofmt, vet, [golangci-lint](https://golangci-lint.run/) (
 **Complete:**
 
 - Interface-first product/order/coupon layers, Postgres + in-memory behind each interface
-- Stdlib HTTP with api-key auth, structured logging, Prometheus metrics, CORS
+- Stdlib HTTP with api-key auth, structured logging, CORS
 - Docker Compose, GitHub Actions CI, OpenAPI contract tests
 
 All green, verified against a clean `docker compose up --build`, not just unit tests.

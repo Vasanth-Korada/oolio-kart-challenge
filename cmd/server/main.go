@@ -15,7 +15,6 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/httpapi"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/order"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/logging"
-	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/observability"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/postgres"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/product"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/migrations"
@@ -58,17 +57,13 @@ func run() error {
 	orderRepo := order.NewDBRepository(pool)
 	orderService := order.NewService(productService, couponValidator, orderRepo, logger)
 
-	metrics := observability.NewPrometheus()
-
 	router := httpapi.NewRouter(httpapi.RouterDeps{
-		Product:        &httpapi.ProductHandler{Service: productService},
-		Order:          &httpapi.OrderHandler{Service: orderService},
-		Health:         &httpapi.HealthHandler{DB: pool},
-		Metrics:        metrics,
-		MetricsHandler: metrics.Handler(),
-		Logger:         logger,
-		APIKey:         cfg.APIKey,
-		CORSOrigin:     cfg.CORSOrigin,
+		Product:    &httpapi.ProductHandler{Service: productService},
+		Order:      &httpapi.OrderHandler{Service: orderService},
+		Health:     &httpapi.HealthHandler{DB: pool},
+		Logger:     logger,
+		APIKey:     cfg.APIKey,
+		CORSOrigin: cfg.CORSOrigin,
 	})
 
 	srv := &http.Server{

@@ -3,19 +3,15 @@ package httpapi
 import (
 	"log/slog"
 	"net/http"
-
-	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/observability"
 )
 
 type RouterDeps struct {
-	Product        *ProductHandler
-	Order          *OrderHandler
-	Health         *HealthHandler
-	Metrics        observability.MetricsRecorder
-	MetricsHandler http.Handler // e.g. promhttp.Handler(); nil disables /metrics
-	Logger         *slog.Logger
-	APIKey         string
-	CORSOrigin     string // "" disables CORS headers entirely
+	Product    *ProductHandler
+	Order      *OrderHandler
+	Health     *HealthHandler
+	Logger     *slog.Logger
+	APIKey     string
+	CORSOrigin string // "" disables CORS headers entirely
 }
 
 func NewRouter(deps RouterDeps) http.Handler {
@@ -30,20 +26,10 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.HandleFunc("GET /healthz", deps.Health.Live)
 	mux.HandleFunc("GET /readyz", deps.Health.Ready)
 
-	if deps.MetricsHandler != nil {
-		mux.Handle("GET /metrics", deps.MetricsHandler)
-	}
-
-	recorder := deps.Metrics
-	if recorder == nil {
-		recorder = observability.NoOp{}
-	}
-
 	mws := []Middleware{
 		RequestID,
 		Recover(deps.Logger),
 		Logging(deps.Logger),
-		Metrics(recorder),
 	}
 	if deps.CORSOrigin != "" {
 		mws = append(mws, CORS(deps.CORSOrigin))

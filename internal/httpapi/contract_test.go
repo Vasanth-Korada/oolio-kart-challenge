@@ -16,7 +16,6 @@ import (
 
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/httpapi"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/order"
-	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/observability"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/product"
 )
 
@@ -48,7 +47,6 @@ func newTestRouter(t *testing.T) http.Handler {
 		Product: &httpapi.ProductHandler{Service: productService},
 		Order:   &httpapi.OrderHandler{Service: orderService},
 		Health:  &httpapi.HealthHandler{DB: alwaysHealthyPinger{}},
-		Metrics: observability.NoOp{},
 		Logger:  logger,
 		APIKey:  testAPIKey,
 	})

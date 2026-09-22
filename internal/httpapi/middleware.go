@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/idgen"
-	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/observability"
 )
 
 type Middleware func(http.Handler) http.Handler
@@ -57,23 +56,6 @@ func Logging(base *slog.Logger) Middleware {
 				slog.Int("status", rec.status),
 				slog.Float64("duration_ms", float64(time.Since(start).Microseconds())/1000.0),
 			)
-		})
-	}
-}
-
-func Metrics(recorder observability.MetricsRecorder) Middleware {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			start := time.Now()
-			rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-
-			next.ServeHTTP(rec, r)
-
-			route := r.Pattern
-			if route == "" {
-				route = r.URL.Path
-			}
-			recorder.ObserveRequest(r.Method, route, rec.status, time.Since(start))
 		})
 	}
 }
