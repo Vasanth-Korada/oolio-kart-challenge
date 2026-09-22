@@ -46,10 +46,7 @@ func run() error {
 		// Falling back here is so a reviewer can run this without first
 		// standing up Postgres, purely for take-home assessment
 		// convenience. A real production deployment should fail fast
-		// instead: silently degrading order storage to non-persistent
-		// memory is a correctness risk on real money-relevant data, not
-		// something to paper over with a fallback. See the README/docs
-		// for the fuller reasoning.
+		// instead.
 		logger.Warn("postgres unreachable, falling back to in-memory storage; data will not persist across restarts",
 			slog.Any("error", err))
 		productRepo = product.NewMemoryRepository(product.SeedProducts())

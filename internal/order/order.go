@@ -15,8 +15,7 @@ var (
 )
 
 // CouponDiscountRate is applied to the order subtotal when a valid
-// coupon is supplied. The spec never defines a per-code discount
-// amount, so this is a flat rate across every valid code.
+// coupon is supplied.
 const CouponDiscountRate = 0.05
 
 type Item struct {
@@ -24,10 +23,6 @@ type Item struct {
 	Quantity  int
 }
 
-// Total and Discount (wire name "discounts") are already part of the
-// base OpenAPI Order schema. CouponCode and Subtotal are the real
-// extensions: the spec never echoes the applied code or shows the
-// pre-discount amount, only the post-discount total.
 type Order struct {
 	ID         string
 	Items      []Item

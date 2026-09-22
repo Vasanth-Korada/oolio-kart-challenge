@@ -19,9 +19,6 @@ import (
 const requiredFileCount = 2
 const indexMagic = "CPX1"
 
-// A 64-bit hash's birthday-bound collision odds are non-trivial at the
-// ~3*10^8 candidate lines here, too risky for something gating a real
-// discount, so this is 128 bits.
 type key128 [16]byte
 
 func hashCode(code string) key128 {

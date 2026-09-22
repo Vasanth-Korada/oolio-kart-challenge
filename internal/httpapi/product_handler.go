@@ -57,10 +57,6 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, resp)
 }
 
-// productId is spec'd as an integer, so a non-numeric id is a 400.
-// The parsed-and-reformatted value (not the raw path segment) is what
-// gets looked up, so "01" and "1" resolve to the same product instead
-// of "01" passing validation but missing the lookup.
 func (h *ProductHandler) Get(w http.ResponseWriter, r *http.Request) {
 	idParam := r.PathValue("id")
 	parsedID, err := strconv.ParseInt(idParam, 10, 64)

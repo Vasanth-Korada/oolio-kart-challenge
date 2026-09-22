@@ -135,11 +135,6 @@ func TestPlaceOrder_Discount(t *testing.T) {
 	}
 }
 
-// TestPlaceOrder_MergesDuplicateProductIDs guards a real bug found by
-// testing the edge case directly: order_items has a composite
-// (order_id, product_id) primary key, so two line items for the same
-// product used to reach the database and fail with a constraint
-// violation, surfacing as a 500 instead of a clean result.
 func TestPlaceOrder_MergesDuplicateProductIDs(t *testing.T) {
 	svc, repo := newTestService(nil)
 

@@ -27,9 +27,6 @@ type orderItemResponse struct {
 	Quantity  int    `json:"quantity"`
 }
 
-// CouponCode/Subtotal are beyond the OpenAPI Order schema; Discount's
-// wire name is "discounts" to match the spec's field name exactly.
-// See order.Order for the full breakdown.
 type orderResponse struct {
 	ID         string              `json:"id"`
 	Items      []orderItemResponse `json:"items"`

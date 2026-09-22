@@ -15,8 +15,6 @@ type Product struct {
 	Image    Image
 }
 
-// Image is part of the base OpenAPI spec; the assignment gave no real
-// photography, so these are deterministic placeholders, not decoration.
 type Image struct {
 	Thumbnail string
 	Mobile    string
