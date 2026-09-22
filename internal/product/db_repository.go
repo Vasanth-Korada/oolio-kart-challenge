@@ -16,8 +16,16 @@ func NewDBRepository(pool *pgxpool.Pool) *DBRepository {
 	return &DBRepository{pool: pool}
 }
 
+const productColumns = `id, name, price::float8, category,
+	COALESCE(image_thumbnail, ''), COALESCE(image_mobile, ''), COALESCE(image_tablet, ''), COALESCE(image_desktop, '')`
+
+func scanProduct(row pgx.Row, p *Product) error {
+	return row.Scan(&p.ID, &p.Name, &p.Price, &p.Category,
+		&p.Image.Thumbnail, &p.Image.Mobile, &p.Image.Tablet, &p.Image.Desktop)
+}
+
 func (r *DBRepository) List(ctx context.Context) ([]Product, error) {
-	rows, err := r.pool.Query(ctx, `SELECT id, name, price::float8, category FROM products ORDER BY id::int`)
+	rows, err := r.pool.Query(ctx, `SELECT `+productColumns+` FROM products ORDER BY id::int`)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +34,7 @@ func (r *DBRepository) List(ctx context.Context) ([]Product, error) {
 	var products []Product
 	for rows.Next() {
 		var p Product
-		if err := rows.Scan(&p.ID, &p.Name, &p.Price, &p.Category); err != nil {
+		if err := scanProduct(rows, &p); err != nil {
 			return nil, err
 		}
 		products = append(products, p)
@@ -36,9 +44,8 @@ func (r *DBRepository) List(ctx context.Context) ([]Product, error) {
 
 func (r *DBRepository) GetByID(ctx context.Context, id string) (Product, error) {
 	var p Product
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, name, price::float8, category FROM products WHERE id = $1`, id,
-	).Scan(&p.ID, &p.Name, &p.Price, &p.Category)
+	row := r.pool.QueryRow(ctx, `SELECT `+productColumns+` FROM products WHERE id = $1`, id)
+	err := scanProduct(row, &p)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Product{}, ErrNotFound
 	}

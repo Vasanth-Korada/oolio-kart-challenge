@@ -12,15 +12,34 @@ type ProductHandler struct {
 	Service product.Service
 }
 
+type imageResponse struct {
+	Thumbnail string `json:"thumbnail"`
+	Mobile    string `json:"mobile"`
+	Tablet    string `json:"tablet"`
+	Desktop   string `json:"desktop"`
+}
+
 type productResponse struct {
-	ID       string  `json:"id"`
-	Name     string  `json:"name"`
-	Price    float64 `json:"price"`
-	Category string  `json:"category"`
+	ID       string        `json:"id"`
+	Name     string        `json:"name"`
+	Price    float64       `json:"price"`
+	Category string        `json:"category"`
+	Image    imageResponse `json:"image"`
 }
 
 func toProductResponse(p product.Product) productResponse {
-	return productResponse{ID: p.ID, Name: p.Name, Price: p.Price, Category: p.Category}
+	return productResponse{
+		ID:       p.ID,
+		Name:     p.Name,
+		Price:    p.Price,
+		Category: p.Category,
+		Image: imageResponse{
+			Thumbnail: p.Image.Thumbnail,
+			Mobile:    p.Image.Mobile,
+			Tablet:    p.Image.Tablet,
+			Desktop:   p.Image.Desktop,
+		},
+	}
 }
 
 func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {

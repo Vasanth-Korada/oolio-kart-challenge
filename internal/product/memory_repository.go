@@ -32,7 +32,7 @@ func (r *MemoryRepository) GetByID(_ context.Context, id string) (Product, error
 var _ Repository = (*MemoryRepository)(nil)
 
 func SeedProducts() []Product {
-	return []Product{
+	products := []Product{
 		{ID: "1", Name: "Waffle with Berries", Price: 6.50, Category: "Waffle"},
 		{ID: "2", Name: "Vanilla Bean Crème Brûlée", Price: 7.00, Category: "Crème Brûlée"},
 		{ID: "3", Name: "Macaron Mix of Five", Price: 8.00, Category: "Macaron"},
@@ -43,5 +43,22 @@ func SeedProducts() []Product {
 		{ID: "8", Name: "Vanilla Panna Cotta", Price: 6.00, Category: "Panna Cotta"},
 		{ID: "9", Name: "Oat & Raisin Cookie", Price: 3.50, Category: "Cookie"},
 		{ID: "10", Name: "Chicken Waffle", Price: 9.00, Category: "Waffle"},
+	}
+	for i := range products {
+		products[i].Image = seedImage(products[i].ID)
+	}
+	return products
+}
+
+// seedImage mirrors the URL pattern migrations/0004_add_product_images.sql
+// backfills into Postgres, so the in-memory and DB-backed repositories
+// agree on the same deterministic placeholder images.
+func seedImage(id string) Image {
+	seed := "product-" + id
+	return Image{
+		Thumbnail: "https://picsum.photos/seed/" + seed + "/150/150",
+		Mobile:    "https://picsum.photos/seed/" + seed + "/375/250",
+		Tablet:    "https://picsum.photos/seed/" + seed + "/600/400",
+		Desktop:   "https://picsum.photos/seed/" + seed + "/900/600",
 	}
 }

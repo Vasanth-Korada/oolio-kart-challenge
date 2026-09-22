@@ -124,8 +124,8 @@
 								"exec": [
 									"pm.test('status is 200', () => pm.response.to.have.status(200));",
 									"const body = pm.response.json();",
-									"pm.test('discount was applied', () => pm.expect(body.discount).to.be.above(0));",
-									"pm.test('total = subtotal - discount', () => pm.expect(body.total).to.eql(Math.round((body.subtotal - body.discount) * 100) / 100));"
+									"pm.test('discount was applied', () => pm.expect(body.discounts).to.be.above(0));",
+									"pm.test('total = subtotal - discounts', () => pm.expect(body.total).to.eql(Math.round((body.subtotal - body.discounts) * 100) / 100));"
 								]
 							}
 						}
@@ -157,7 +157,7 @@
 								"type": "text/javascript",
 								"exec": [
 									"pm.test('status is 200', () => pm.response.to.have.status(200));",
-									"pm.test('no discount applied', () => pm.expect(pm.response.json().discount).to.eql(0));"
+									"pm.test('no discount applied', () => pm.expect(pm.response.json().discounts).to.eql(0));"
 								]
 							}
 						}

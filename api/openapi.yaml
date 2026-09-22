@@ -126,16 +126,18 @@ components:
           description: >-
             Extension beyond the base spec: sum of item prices before
             any discount.
-        discount:
+        discounts:
           type: number
           format: float
+          examples: [10.0]
           description: >-
-            Extension beyond the base spec: amount deducted for a valid
-            coupon (flat 5% of subtotal), 0 when none was applied.
+            Amount deducted for a valid coupon (flat 5% of subtotal), 0
+            when none was applied. Already part of the base spec.
         total:
           type: number
           format: float
-          description: 'Extension beyond the base spec: subtotal minus discount.'
+          examples: [90.0]
+          description: 'Subtotal minus discounts. Already part of the base spec.'
     OrderReq:
       type: object
       description: Place a new order
@@ -175,6 +177,24 @@ components:
         category:
           type: string
           examples: [Waffle]
+        image:
+          type: object
+          description: >-
+            Deterministic placeholder images (picsum.photos), keyed by
+            product id. The assignment gave no real product photography.
+          properties:
+            thumbnail:
+              type: string
+              examples: ["https://picsum.photos/seed/product-10/150/150"]
+            mobile:
+              type: string
+              examples: ["https://picsum.photos/seed/product-10/375/250"]
+            tablet:
+              type: string
+              examples: ["https://picsum.photos/seed/product-10/600/400"]
+            desktop:
+              type: string
+              examples: ["https://picsum.photos/seed/product-10/900/600"]
     ApiResponse:
       type: object
       properties:

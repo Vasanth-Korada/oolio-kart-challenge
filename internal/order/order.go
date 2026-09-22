@@ -24,9 +24,10 @@ type Item struct {
 	Quantity  int
 }
 
-// Subtotal/Discount/Total and CouponCode are beyond the OpenAPI Order
-// schema (which has no pricing fields): a documented extension so a
-// valid coupon has a visible effect, not just a pass/fail gate.
+// Total and Discount (wire name "discounts") are already part of the
+// base OpenAPI Order schema. CouponCode and Subtotal are the real
+// extensions: the spec never echoes the applied code or shows the
+// pre-discount amount, only the post-discount total.
 type Order struct {
 	ID         string
 	Items      []Item

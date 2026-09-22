@@ -27,15 +27,16 @@ type orderItemResponse struct {
 	Quantity  int    `json:"quantity"`
 }
 
-// Subtotal/Discount/Total/CouponCode are beyond the OpenAPI Order
-// schema; see order.Order for why.
+// CouponCode/Subtotal are beyond the OpenAPI Order schema; Discount's
+// wire name is "discounts" to match the spec's field name exactly.
+// See order.Order for the full breakdown.
 type orderResponse struct {
 	ID         string              `json:"id"`
 	Items      []orderItemResponse `json:"items"`
 	Products   []productResponse   `json:"products"`
 	CouponCode string              `json:"couponCode,omitempty"`
 	Subtotal   float64             `json:"subtotal"`
-	Discount   float64             `json:"discount"`
+	Discount   float64             `json:"discounts"`
 	Total      float64             `json:"total"`
 }
 
