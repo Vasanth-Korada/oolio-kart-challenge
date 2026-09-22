@@ -3,8 +3,8 @@
 Go implementation of Oolio's food-ordering OpenAPI 3.1 spec, for the advanced backend challenge.
 
 - Stdlib `net/http` for routing
-- Postgres for storage
-- Scale-conscious design for promo-code validation, the rule the assignment calls out by name
+- Postgres for storage otherwise fallback to in-memory for DB connection failure (assessment purpose)
+- Scale-conscious design for promo-code validation.
 
 ## Table of Contents
 
@@ -137,10 +137,7 @@ The centerpiece of this assignment.
 Verified against real data: `HAPPYHRS` and `FIFTYOFF` are valid, `SUPER100` is not (`internal/coupon/index_real_data_test.go`).
 
 **Alternatives rejected:**
-
-- **Bloom filter.** Costs ~384MB resident per process (a filter can't be pre-reduced to just the overlap). At a 1% false-positive rate, ~0.03% of invalid codes would pass by collision: a real discount for a code that was never valid. Our index is exact and 136 bytes at rest.
 - **Reprocess on every boot.** ~2.1GB of near-random, barely-compressible data. Wasted work for data that never changes.
-- **64-bit fingerprints.** Rejected once the real scale was known. Math, not intuition, drove 128 bits.
 - **A Postgres `coupon_codes` table.** Would work, but adds a network round trip per order for data that's cheaper to hold as an in-process sorted slice.
 
 ---
@@ -211,7 +208,7 @@ Requires an `api_key` header.
 | 403 | Wrong `api_key` |
 | 422 | Empty items, bad quantity, unknown product, or invalid coupon |
 
-The base `Order` schema has no pricing fields. The spec never defines a discount amount for any code, so validation alone can't imply one.
+The base `Order` schema has no pricing fields.
 
 - `couponCode`, `subtotal`, `discount`, `total` are a documented extension
 - `subtotal` is server-computed from real prices, never the client's
@@ -236,8 +233,6 @@ Not part of the OpenAPI spec, standard production hygiene:
 - **UUID v4 order IDs**, not sequential integers. Sequential ids let anyone enumerate `/order/4`, `/order/5`, ... (an IDOR risk). `crypto/rand` makes guessing infeasible.
 - **Package-by-feature, not package-by-layer.** `internal/product` and `internal/order` each own their full vertical slice, instead of a shared `handler/`/`service/`/`repository/` split. Keeps a feature's blast radius to one package, avoids Go's import-cycle friction between layers.
 - **Sentinel errors, `errors.Is`, never string-matched.** Package-level `errors.New` values, mapped to status codes by identity. Safe across wrapping and refactors.
-- **Constant-time API-key comparison**, not `==`. A plain comparison leaks how many leading bytes of a guess are correct via response timing.
-- **Flat 5% discount** for any valid coupon. The spec defines no per-code rate.
 
 ---
 
@@ -248,7 +243,7 @@ Not part of the OpenAPI spec, standard production hygiene:
 | Coupon validation | 136-byte index, O(log n) binary search | Shard the offline build by byte range; gzip's multistream boundaries are natural split points |
 | Products | Postgres, ~10 rows | Cache (Redis) in front of `product.Repository`; interface doesn't change |
 | Orders | Postgres, one transaction per order | Read replicas for reporting |
-| API server | Single stateless process | Horizontal: no in-process state beyond the coupon index, N replicas work unmodified |
+| API server | Single stateless process | Horizontal |
 | Coupon index build | Per-file concurrent (`errgroup`), single process | Shard within each file by byte range (gzip multistream boundaries), or distribute across machines for many more source files |
 
 ---
@@ -275,22 +270,3 @@ make vet / make fmt     # go vet / gofmt check
 CI runs on every push: gofmt, vet, [golangci-lint](https://golangci-lint.run/) (curated for real bug/security signal, not a maximal dump), build, `make test`.
 
 ---
-
-## Status
-
-**Complete:**
-
-- Interface-first product/order/coupon layers, Postgres + in-memory behind each interface
-- Stdlib HTTP with api-key auth, structured logging, CORS
-- Docker Compose, GitHub Actions CI, OpenAPI contract tests
-
-All green, verified against a clean `docker compose up --build`, not just unit tests.
-
-Minimal React frontend in a [separate repository](https://github.com/Vasanth-Korada/oolio-kart-challenge-web), per the assignment's optional UI note.
-
-Two real edge-case bugs (duplicate line items, leading-zero product ids) were found by testing the running server, not by inspection, and fixed with regression tests.
-
-See the commit history for how the design evolved:
-
-- Coupon index moved from a single map to per-file sorted slices once the real ~313M-line scale was measured
-- The fetch script's retry logic exists because a download genuinely stalled mid-transfer during development
