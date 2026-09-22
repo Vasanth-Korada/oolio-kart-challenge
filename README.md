@@ -8,14 +8,36 @@ Go implementation of Oolio's food-ordering OpenAPI 3.1 spec, for the advanced ba
 
 ## Table of Contents
 
-1. [Quickstart](#quickstart)
-2. [Architecture](#architecture)
-3. [Coupon Validation](#coupon-validation)
-4. [API Reference](#api-reference)
-5. [Design Decisions](#design-decisions)
-6. [Scalability](#scalability)
-7. [Testing](#testing)
-8. [Status](#status)
+1. [Features](#features)
+2. [Quickstart](#quickstart)
+3. [Architecture](#architecture)
+4. [Coupon Validation](#coupon-validation)
+5. [API Reference](#api-reference)
+6. [Design Decisions](#design-decisions)
+7. [Scalability](#scalability)
+8. [Testing](#testing)
+9. [Status](#status)
+
+---
+
+## Features
+
+- **Product catalog** — list all products, fetch one by id
+- **Order placement** — prices computed server-side, client-supplied prices never trusted
+- **Duplicate-item merging** — the same `productId` sent twice in one order merges into a single line item
+- **5% coupon discount** — flat rate on a valid code, a documented extension beyond the base spec
+- **Coupon validation at real scale** — checked against ~313M real candidate codes via an offline-built binary index, O(log n) lookup
+- **Product images** — thumbnail/mobile/tablet/desktop URLs, matching the base spec
+- **API-key authentication** — constant-time comparison on `POST /order`, timing-attack safe
+- **CORS support** — the separate React frontend calls this API cross-origin
+- **Structured logging** — JSON logs correlated by request id
+- **Health checks** — `/healthz` liveness, `/readyz` readiness against Postgres
+- **Postgres persistence** — versioned SQL migrations, connection pooling
+- **Full test coverage** — unit, integration (real Postgres), and OpenAPI contract tests
+- **Dockerized** — multi-stage build to a distroless runtime image, one-command `docker compose up`
+- **CI on every push** — gofmt, vet, golangci-lint, build, test
+- **Postman collection** — runnable requests and assertions for every endpoint and error path
+- **React frontend** — catalog, cart, coupon checkout, order confirmation, in a [separate repo](https://github.com/Vasanth-Korada/oolio-kart-challenge-web)
 
 ---
 
