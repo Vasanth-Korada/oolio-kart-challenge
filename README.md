@@ -35,6 +35,35 @@ Want the UI too? See [oolio-kart-challenge-web](https://github.com/Vasanth-Korad
 
 Layered, interface-first: handlers depend on `Service` interfaces, services depend on `Repository`/`Validator` interfaces, never on concrete storage.
 
+```mermaid
+flowchart TB
+    subgraph Offline["Offline, run once"]
+        direction LR
+        RAW["couponbase1/2/3.gz<br/>~2.1GB"] --> BI["cmd/buildindex"]
+        BI --> IDX["coupons.idx<br/>136 bytes, committed"]
+    end
+
+    subgraph Runtime["Runtime, every request"]
+        direction LR
+        Client(["Client"]) -->|HTTP JSON| MW["Middleware chain<br/>RequestID -&gt; Recover -&gt; Logging -&gt; Metrics -&gt; CORS"]
+        MW --> Mux["net/http.ServeMux"]
+        Mux -->|"GET /product..."| PH["ProductHandler"]
+        Mux -->|"POST /order (api_key)"| OH["OrderHandler"]
+        PH --> PS["product.Service"]
+        OH --> OS["order.Service"]
+        OS --> PS
+        OS --> CV["coupon.Validator"]
+        PS --> PR[("product.Repository")]
+        OS --> OR[("order.Repository")]
+        PR --> PG[("Postgres")]
+        OR --> PG
+    end
+
+    IDX -. loaded at startup .-> CV
+```
+
+The two halves of that diagram are the two halves of the coupon story: an offline, one-time build that turns ~2.1GB of raw data into a 136-byte artifact, and a runtime path that never touches the raw files again, just the small loaded index.
+
 ```
 cmd/server        - wiring: config, DB pool, migrations, coupon index, routes, graceful shutdown
 cmd/buildindex     - offline tool: raw coupon files -> coupons.idx
