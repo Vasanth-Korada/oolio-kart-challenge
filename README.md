@@ -1,10 +1,10 @@
 # Oolio Kart Challenge: Food Ordering API
 
-A Go implementation of Oolio's food-ordering OpenAPI 3.1 spec, built for the advanced backend challenge.
+Go implementation of Oolio's food-ordering OpenAPI 3.1 spec, for the advanced backend challenge.
 
 - Stdlib `net/http` for routing
 - Postgres for storage
-- A scale-conscious design for the one business rule the assignment specifically calls out: promo-code validation
+- Scale-conscious design for promo-code validation, the rule the assignment calls out by name
 
 ## Table of Contents
 
@@ -17,19 +17,23 @@ A Go implementation of Oolio's food-ordering OpenAPI 3.1 spec, built for the adv
 7. [Testing](#testing)
 8. [Status](#status)
 
+---
+
 ## Quickstart
 
 ```bash
 make docker-up   # postgres + backend, using the already-built coupons/coupons.idx
 ```
 
-The server listens on `:8080`.
+Server listens on `:8080`.
 
-- `POST /order` requires an `api_key: apitest` header (configurable via `API_KEY`)
-- `coupons/coupons.idx` is committed (136 bytes), so this is all you need to run it
-- `make fetch-coupons` and `make build-coupon-index` are only for rebuilding that index yourself from the original ~2.1GB source files (not committed, see [Coupon Validation](#coupon-validation))
+- `POST /order` needs an `api_key: apitest` header (configurable via `API_KEY`)
+- `coupons/coupons.idx` is committed (136 bytes): that's all you need to run it
+- `make fetch-coupons` / `make build-coupon-index` rebuild that index from the original ~2.1GB source files (not committed, see [Coupon Validation](#coupon-validation))
 
 Want the UI too? See [oolio-kart-challenge-web](https://github.com/Vasanth-Korada/oolio-kart-challenge-web). Point it at this server with `VITE_API_BASE_URL=http://localhost:8080`.
+
+---
 
 ## Architecture
 
@@ -62,7 +66,7 @@ flowchart TB
     IDX -. loaded at startup .-> CV
 ```
 
-The two halves of that diagram are the two halves of the coupon story: an offline, one-time build that turns ~2.1GB of raw data into a 136-byte artifact, and a runtime path that never touches the raw files again, just the small loaded index.
+Two halves: an offline, one-time build turning ~2.1GB of raw data into a 136-byte artifact, and a runtime path that only ever touches the small loaded index.
 
 ```
 cmd/server        - wiring: config, DB pool, migrations, coupon index, routes, graceful shutdown
@@ -75,15 +79,17 @@ internal/platform  - postgres pool/migrations, structured logging, Prometheus me
 migrations/        - SQL schema + product seed data
 ```
 
-`product` and `order` are organized by feature, not by technical layer. Each package owns its full vertical slice. See [Design Decisions](#design-decisions) for why.
+`product` and `order` are organized by feature, not by layer, each owns its full vertical slice. See [Design Decisions](#design-decisions).
+
+---
 
 ## Coupon Validation
 
 The centerpiece of this assignment.
 
-**Rule:** a code is valid only if it's 8-10 characters long, and it appears in at least 2 of the 3 supplied files (`couponbase1/2/3.gz`).
+**Rule:** valid only if 8-10 characters long, and it appears in at least 2 of the 3 supplied files (`couponbase1/2/3.gz`).
 
-**Real numbers**, measured against the actual files, not estimated:
+**Real numbers**, measured against the actual files:
 
 | File | Compressed | Lines | Unique candidates (len 8-10) |
 | --- | --- | --- | --- |
@@ -92,28 +98,27 @@ The centerpiece of this assignment.
 | couponbase3.gz | 738MB | 98,566,152 | 98,566,151 |
 | **Total** | **~2.1GB** | **313,087,705** | |
 
-- **8 valid codes** survive the 2+ file rule, written to a **136-byte** index
-- Full build (streaming ~313M lines: hashing, sorting, merging) takes ~4.5 minutes on a single core, one time
+- **8 valid codes** survive the rule, written to a **136-byte** index
+- Full build (~313M lines: hash, sort, merge) takes ~4.5 minutes, single core, one time
 
-**Why this design, not the obvious one:**
+**Why this design:**
 
-- Loading all three files into memory on every boot means re-paying ~2.1GB of decompression for data that never changes. Instead, `cmd/buildindex` runs once and produces a tiny artifact the server loads at startup.
-- A single `map[key]bitmask` accumulating candidates across all three files was the first design, until the real numbers came in. At ~313M candidate lines, that map's per-entry overhead would cost tens of GB of RAM. Instead, each file's candidates are hashed, sorted, and deduplicated into its own compact slice (16 bytes/entry, no map overhead), and a k-way merge finds codes present in 2+ sets. Peak memory is roughly the sum of each file's own unique candidate count, not a hashmap-inflated multiple of it.
-- Fingerprints are SHA-256 truncated to **128 bits**, not a cheaper 64-bit hash. At ~3x10^8 candidate lines, a 64-bit hash's birthday-bound collision probability is roughly 1-in-4000: an unacceptable risk for something that gates a real discount. 128 bits (stdlib `crypto/sha256`, no dependency) makes that risk negligible, at a cost paid once, offline.
-- The three source files are large enough that plain downloads can silently stall or truncate mid-transfer (hit first-hand during development, see `scripts/fetch_coupons.sh`). The fetch step verifies each file's size against the origin's `Content-Length` and resumes until it matches, rather than trusting a tool's exit code alone.
-- A truncated or corrupted file doesn't abort the whole index build. `internal/coupon.scanFile` logs a warning and continues with whatever was read cleanly, so a bad download degrades gracefully instead of crashing.
+- **Build once, not every boot.** Reprocessing all three files on every boot re-pays ~2.1GB of decompression for data that never changes. `cmd/buildindex` runs once; the server just loads the small result.
+- **Sorted slices, not one shared map.** A single `map[key]bitmask` was the first design. At ~313M lines its overhead costs tens of GB of RAM. Each file's candidates are hashed, sorted, and deduplicated into a 16-byte/entry slice instead, then k-way merged. Peak memory is the sum of each file's own unique count, not a map multiplier.
+- **128-bit hashes, not 64-bit.** At ~3x10^8 lines, a 64-bit hash's collision odds are ~1-in-4000: too risky for something gating real money. 128 bits (stdlib `crypto/sha256`) makes that negligible, at a cost paid once, offline.
+- **Resumable downloads.** These files are large enough to stall mid-transfer (it happened during development). The fetch step checks size against `Content-Length` and resumes, rather than trusting a tool's exit code.
+- **Graceful on a bad file.** A truncated or corrupted source file logs a warning and the build continues with what it read, instead of aborting.
 
-Verified against the assignment's own examples, using the real data: `HAPPYHRS` and `FIFTYOFF` are valid, `SUPER100` is not (`internal/coupon/index_real_data_test.go`).
+Verified against real data: `HAPPYHRS` and `FIFTYOFF` are valid, `SUPER100` is not (`internal/coupon/index_real_data_test.go`).
 
-**Alternatives considered and rejected:**
+**Alternatives rejected:**
 
-- *Bloom filter instead of an exact index.* Rejected on two counts:
-  - **Cost.** A filter sized for ~107M entries at a 1% false-positive rate needs `m = -n·ln(p)/(ln 2)^2 ≈ 1.03 billion bits (~128MB)` per file. That's roughly 384MB kept resident for the life of the process, since a filter can't be pre-reduced to just the overlapping entries; the full filter is needed to answer queries about codes not yet seen.
-  - **Correctness.** At a 1% single-file false-positive rate, roughly `3 x p^2 x (1-p) ≈ 0.03%` of genuinely invalid codes would pass the 2+ file rule purely by filter collision. That's a real discount granted for a code that was never valid.
-  - Our index is exact, with zero false positives, and goes from 384MB down to 136 bytes at rest, because the one-time build discards everything except the actual overlap.
-- *Reprocessing the 3 files on every server boot.* Rejected. It's ~2.1GB of compressed, barely-compressible (near-random) data. Paying that decompression and scan cost on every deploy for data that never changes is wasted work. Build once, load a 136-byte file forever after.
-- *64-bit fingerprints.* Rejected once the real scale was known, see above. The math, not just intuition, drove the choice of 128 bits.
-- *A relational "coupon_codes" table in Postgres, checked with a `WHERE code = ANY(...)` per order.* Would work, but turns every order into an extra round trip to a table that's static after the one-time import, for data that's cheaper to hold as an in-process sorted slice than to re-fetch over the network per request.
+- **Bloom filter.** Costs ~384MB resident per process (a filter can't be pre-reduced to just the overlap). At a 1% false-positive rate, ~0.03% of invalid codes would pass by collision: a real discount for a code that was never valid. Our index is exact and 136 bytes at rest.
+- **Reprocess on every boot.** ~2.1GB of near-random, barely-compressible data. Wasted work for data that never changes.
+- **64-bit fingerprints.** Rejected once the real scale was known. Math, not intuition, drove 128 bits.
+- **A Postgres `coupon_codes` table.** Would work, but adds a network round trip per order for data that's cheaper to hold as an in-process sorted slice.
+
+---
 
 ## API Reference
 
@@ -153,7 +158,7 @@ Requires an `api_key` header.
 }
 ```
 
-**Response `200`** (a real captured response, not a mock-up):
+**Response `200`** (a real captured response):
 
 ```json
 {
@@ -181,83 +186,87 @@ Requires an `api_key` header.
 | 403 | Wrong `api_key` |
 | 422 | Empty items, bad quantity, unknown product, or invalid coupon |
 
-The base `Order` schema has no pricing fields. Oolio's spec never defines a discount amount for any code, so validation alone can't imply one.
+The base `Order` schema has no pricing fields. The spec never defines a discount amount for any code, so validation alone can't imply one.
 
-- `couponCode`, `subtotal`, `discount`, and `total` are added as a documented extension
-- `subtotal` is server-computed from real prices, never trusted from the client
-- A valid coupon takes a flat 5% off (`internal/order.CouponDiscountRate`), since no other rate is specified anywhere
-- `additionalProperties` isn't restricted in the base spec, so these extra fields don't break conformance
-- `api/openapi.yaml` documents them explicitly instead of leaving them undocumented
+- `couponCode`, `subtotal`, `discount`, `total` are a documented extension
+- `subtotal` is server-computed from real prices, never the client's
+- A valid coupon is a flat 5% off (`internal/order.CouponDiscountRate`), since no rate is specified anywhere
+- `additionalProperties` isn't restricted in the base spec, so this doesn't break conformance
+- `api/openapi.yaml` documents them explicitly
 
 ### Operational endpoints
 
-Not part of the OpenAPI spec, added as standard production hygiene:
+Not part of the OpenAPI spec, standard production hygiene:
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /healthz` | Liveness: always `200` once the process is serving |
+| `GET /healthz` | Liveness: always `200` once serving |
 | `GET /readyz` | Readiness: `503` if Postgres is unreachable |
-| `GET /metrics` | Prometheus exposition (`http_requests_total`, `http_request_duration_seconds`, labeled by route pattern, not raw path) |
+| `GET /metrics` | Prometheus exposition, labeled by route pattern, not raw path |
+
+---
 
 ## Design Decisions
 
-- **Stdlib-first, two named exceptions.** No HTTP framework, no ORM. Go 1.22+'s pattern-based `net/http.ServeMux` handles method and path-param routing natively. The two deliberate non-stdlib dependencies are `pgx` (Go has no built-in Postgres driver) and `prometheus/client_golang` (hand-rolling the Prometheus exposition format would be reinventing an established wheel poorly).
-- **UUID v4 order IDs via `crypto/rand`** (`internal/platform/idgen`), not sequential integers. A sequential id lets anyone enumerate `/order/4`, `/order/5`, and so on: an IDOR (insecure direct object reference) risk. A random 122-bit id makes guessing another order's id computationally infeasible.
-- **Package-by-feature, not package-by-layer.** `internal/product` and `internal/order` each own their full vertical slice (model, `Repository`, `Service`), rather than a shared top-level `handler/`/`service/`/`repository/` split across all entities. Keeps a feature's blast radius to one package and sidesteps the import-cycle friction Go's compiler enforces when layers need to reference each other bidirectionally.
-- **Sentinel errors, checked with `errors.Is`, never string-matched.** `order.ErrInvalidCoupon` and friends are package-level `errors.New` values. The HTTP layer maps them to status codes by identity, safe across wrapping (`fmt.Errorf("%w", ...)`) and refactors.
-- **Constant-time API-key comparison** (`crypto/subtle.ConstantTimeCompare`), not `==`. A plain string comparison leaks how many leading bytes of a guess are correct via response timing.
-- **Flat 5% discount for any valid coupon.** The spec never defines a per-code rate. See [Coupon Validation](#coupon-validation) and the API section above.
+- **Stdlib-first, two exceptions.** No HTTP framework, no ORM. Go 1.22+'s `net/http.ServeMux` handles method and path-param routing natively. `pgx` (no built-in Postgres driver) and `prometheus/client_golang` (not worth hand-rolling) are the two deliberate dependencies.
+- **UUID v4 order IDs**, not sequential integers. Sequential ids let anyone enumerate `/order/4`, `/order/5`, ... (an IDOR risk). `crypto/rand` makes guessing infeasible.
+- **Package-by-feature, not package-by-layer.** `internal/product` and `internal/order` each own their full vertical slice, instead of a shared `handler/`/`service/`/`repository/` split. Keeps a feature's blast radius to one package, avoids Go's import-cycle friction between layers.
+- **Sentinel errors, `errors.Is`, never string-matched.** Package-level `errors.New` values, mapped to status codes by identity. Safe across wrapping and refactors.
+- **Constant-time API-key comparison**, not `==`. A plain comparison leaks how many leading bytes of a guess are correct via response timing.
+- **Flat 5% discount** for any valid coupon. The spec defines no per-code rate.
+
+---
 
 ## Scalability
 
 | Component | Now | To scale further |
 | --- | --- | --- |
-| Coupon validation | Pre-built 136-byte index, O(log n) binary search | Shard the offline build by byte-range across goroutines/machines; gzip's multistream boundaries are natural split points |
-| Products | Postgres, ~10 rows | A cache (Redis) in front of `product.Repository` if the catalog grows large or read-heavy; the interface doesn't change |
-| Orders | Postgres, single instance, one transaction per order | Read replicas for reporting; the write path is already minimal |
-| API server | Single stateless process | Horizontal: no in-process state beyond the loaded coupon index, so N replicas behind a load balancer work unmodified |
-| Coupon index build | Single core, ~4.5 min for 313M lines | Embarrassingly parallel (see above); the index itself scales with the overlap between files, not their size |
+| Coupon validation | 136-byte index, O(log n) binary search | Shard the offline build by byte range; gzip's multistream boundaries are natural split points |
+| Products | Postgres, ~10 rows | Cache (Redis) in front of `product.Repository`; interface doesn't change |
+| Orders | Postgres, one transaction per order | Read replicas for reporting |
+| API server | Single stateless process | Horizontal: no in-process state beyond the coupon index, N replicas work unmodified |
+| Coupon index build | Single core, ~4.5 min for 313M lines | Embarrassingly parallel; scales with file *overlap*, not size |
+
+---
 
 ## Testing
 
-One test file per layer, table-driven with `t.Run` sub-tests throughout:
+One test file per layer, table-driven with `t.Run` sub-tests:
 
 | Layer | Where | Covers |
 | --- | --- | --- |
-| Repository | `*_repository_test.go` (product, order) | In-memory repos directly; `*_integration_test.go` (build tag `integration`) exercise the real Postgres repos against a live DB |
-| Service | `internal/{product,order}/service_test.go` | Item validation, pricing, coupon checks, persistence, with fakes for the collaborators |
-| Handler | `internal/httpapi/{product,order}_handler_test.go` | Status codes and error mapping in isolation, with a fake service |
-| Contract | `internal/httpapi/contract_test.go` | Every endpoint's request/response validated against `api/openapi.yaml` via [kin-openapi](https://github.com/getkin/kin-openapi): proof of spec conformance, not an assertion of it |
-| Coupon | `internal/coupon/*_test.go` | Length boundaries, a synthetic fixture, and the real files' documented examples (skipped if `coupons.idx` isn't built) |
+| Repository | `*_repository_test.go` | In-memory directly; `*_integration_test.go` (tag `integration`) against a live Postgres |
+| Service | `service_test.go` | Validation, pricing, coupon checks, persistence, with fakes |
+| Handler | `*_handler_test.go` | Status codes and error mapping, with a fake service |
+| Contract | `contract_test.go` | Every request/response validated against `api/openapi.yaml` via [kin-openapi](https://github.com/getkin/kin-openapi) |
+| Coupon | `internal/coupon/*_test.go` | Length boundaries, a synthetic fixture, the real files' documented examples |
 
 ```bash
 make test              # everything except Postgres integration tests
-make integration-test  # Postgres repos, needs DATABASE_URL (e.g. the docker-compose Postgres)
+make integration-test  # Postgres repos, needs DATABASE_URL
 make lint               # golangci-lint
 make vet / make fmt     # go vet / gofmt check
 ```
 
-CI (`.github/workflows/ci.yml`) runs on every push/PR:
+CI runs on every push: gofmt, vet, [golangci-lint](https://golangci-lint.run/) (curated for real bug/security signal, not a maximal dump), build, `make test`.
 
-- gofmt and vet
-- [golangci-lint](https://golangci-lint.run/) (`.golangci.yml`: errcheck, staticcheck, unused, gosec, and resource-leak checks; a curated set chosen for real bug/security signal, not a maximal "every linter on" dump)
-- build
-- `make test`
+---
 
 ## Status
 
 **Complete:**
 
-- Interface-first product/order/coupon layers, with Postgres and in-memory implementations behind each interface
-- Stdlib HTTP with api-key auth, structured logging, Prometheus metrics, and CORS
-- Docker Compose and GitHub Actions CI
-- OpenAPI contract tests
+- Interface-first product/order/coupon layers, Postgres + in-memory behind each interface
+- Stdlib HTTP with api-key auth, structured logging, Prometheus metrics, CORS
+- Docker Compose, GitHub Actions CI, OpenAPI contract tests
 
 All green, verified against a clean `docker compose up --build`, not just unit tests.
 
-A minimal React frontend lives in a [separate repository](https://github.com/Vasanth-Korada/oolio-kart-challenge-web), per the assignment's "feel free to explore" note on the UI.
+Minimal React frontend in a [separate repository](https://github.com/Vasanth-Korada/oolio-kart-challenge-web), per the assignment's optional UI note.
 
-See the commit history for how the design evolved as real data and real runs surfaced things a plan alone wouldn't have caught. For example:
+Two real edge-case bugs (duplicate line items, leading-zero product ids) were found by testing the running server, not by inspection, and fixed with regression tests.
 
-- The coupon index moved from a single map to per-file sorted slices once the real ~313M-line scale was measured
+See the commit history for how the design evolved:
+
+- Coupon index moved from a single map to per-file sorted slices once the real ~313M-line scale was measured
 - The fetch script's retry logic exists because a download genuinely stalled mid-transfer during development
