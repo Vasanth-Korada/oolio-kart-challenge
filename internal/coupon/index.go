@@ -27,7 +27,7 @@ type codeKey [keySize]byte
 
 func makeKey(code string) codeKey {
 	var k codeKey
-	k[0] = byte(len(code))
+	k[0] = byte(len(code)) //nolint:gosec // callers check ValidLength first, so len is 8-10
 	copy(k[1:], code)
 	return k
 }
@@ -59,7 +59,7 @@ type Stats struct {
 	IndexBytes        int64
 }
 
-// Each file's candidates are sorted, and deduplicated into
+// Each file's candidates are sorted and deduplicated into
 // their own slice and merged, rather than accumulated into one shared
 // map: at ~3*10^8 lines a map's per-entry overhead costs tens of GB.
 func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, error) {
