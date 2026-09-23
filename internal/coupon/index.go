@@ -66,9 +66,6 @@ func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, err
 	if len(paths) < requiredFileCount {
 		return Stats{}, fmt.Errorf("coupon: need at least %d source files, got %d", requiredFileCount, len(paths))
 	}
-	if len(paths) > 8 {
-		return Stats{}, fmt.Errorf("coupon: at most 8 source files supported, got %d", len(paths))
-	}
 
 	stats := Stats{
 		PerFileLines:      make([]int64, len(paths)),
