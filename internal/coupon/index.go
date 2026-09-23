@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
-	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"log/slog"
@@ -17,26 +16,31 @@ import (
 )
 
 const requiredFileCount = 2
-const indexMagic = "CPX1"
+const indexMagic = "CPX2"
 
-type key128 [16]byte
+// Codes are at most maxLength bytes, so each is stored as-is in a fixed
+// array: exact matching, no hashing. The leading length byte keeps
+// "ABCDEFGH" distinct from "ABCDEFGH\x00" despite the zero padding.
+const keySize = 1 + maxLength
 
-func hashCode(code string) key128 {
-	sum := sha256.Sum256([]byte(code))
-	var k key128
-	copy(k[:], sum[:16])
+type codeKey [keySize]byte
+
+func makeKey(code string) codeKey {
+	var k codeKey
+	k[0] = byte(len(code))
+	copy(k[1:], code)
 	return k
 }
 
 type Index struct {
-	keys []key128
+	keys []codeKey
 }
 
 func (idx *Index) IsValid(code string) bool {
 	if !ValidLength(code) {
 		return false
 	}
-	k := hashCode(code)
+	k := makeKey(code)
 	i := sort.Search(len(idx.keys), func(i int) bool {
 		return bytes.Compare(idx.keys[i][:], k[:]) >= 0
 	})
@@ -55,7 +59,7 @@ type Stats struct {
 	IndexBytes        int64
 }
 
-// Each file's candidates are hashed, sorted, and deduplicated into
+// Each file's candidates are sorted, and deduplicated into
 // their own slice and merged, rather than accumulated into one shared
 // map: at ~3*10^8 lines a map's per-entry overhead costs tens of GB.
 func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, error) {
@@ -70,26 +74,26 @@ func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, err
 		PerFileLines:      make([]int64, len(paths)),
 		PerFileCandidates: make([]int, len(paths)),
 	}
-	sets := make([][]key128, len(paths))
+	sets := make([][]codeKey, len(paths))
 	lineCounts := make([]int64, len(paths))
 
-	// Each file is independent until the merge below, so they're hashed
+	// Each file is independent until the merge below, so they're read
 	// and sorted concurrently. Every goroutine owns a distinct index
 	// into sets/lineCounts, no shared state, no lock needed.
 	g := new(errgroup.Group)
 	for i, path := range paths {
 		g.Go(func() error {
-			hashes, lines, err := collectFileHashes(logger, i, path)
+			keys, lines, err := collectFileCodes(logger, i, path)
 			if err != nil {
 				return err
 			}
-			sets[i] = hashes
+			sets[i] = keys
 			lineCounts[i] = lines
 			logger.Info("coupon: indexed source file",
 				slog.Int("file_index", i),
 				slog.String("path", path),
 				slog.Int64("lines", lines),
-				slog.Int("unique_candidates", len(hashes)),
+				slog.Int("unique_candidates", len(keys)),
 			)
 			return nil
 		})
@@ -128,20 +132,20 @@ func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, err
 	return stats, nil
 }
 
-func collectFileHashes(logger *slog.Logger, fileIndex int, path string) ([]key128, int64, error) {
-	var hashes []key128
+func collectFileCodes(logger *slog.Logger, fileIndex int, path string) ([]codeKey, int64, error) {
+	var keys []codeKey
 	lines, err := scanFile(logger, fileIndex, path, func(code string) {
-		hashes = append(hashes, hashCode(code))
+		keys = append(keys, makeKey(code))
 	})
 	if err != nil {
 		return nil, 0, err
 	}
 
-	sort.Slice(hashes, func(i, j int) bool { return bytes.Compare(hashes[i][:], hashes[j][:]) < 0 })
-	return dedupeSorted(hashes), lines, nil
+	sort.Slice(keys, func(i, j int) bool { return bytes.Compare(keys[i][:], keys[j][:]) < 0 })
+	return dedupeSorted(keys), lines, nil
 }
 
-func dedupeSorted(s []key128) []key128 {
+func dedupeSorted(s []codeKey) []codeKey {
 	if len(s) == 0 {
 		return s
 	}
@@ -192,12 +196,12 @@ func scanFile(logger *slog.Logger, fileIndex int, path string, onCandidate func(
 	return lines, nil
 }
 
-func mergeAtLeastN(sets [][]key128, n int) []key128 {
+func mergeAtLeastN(sets [][]codeKey, n int) []codeKey {
 	idxs := make([]int, len(sets))
-	var result []key128
+	var result []codeKey
 
 	for {
-		var min key128
+		var min codeKey
 		minSet := -1
 		for i, s := range sets {
 			if idxs[i] >= len(s) {
@@ -226,7 +230,7 @@ func mergeAtLeastN(sets [][]key128, n int) []key128 {
 	return result
 }
 
-func writeIndex(w *os.File, keys []key128) error {
+func writeIndex(w *os.File, keys []codeKey) error {
 	if len(keys) > math.MaxUint32 {
 		return fmt.Errorf("coupon: %d valid codes exceeds the uint32 index header limit", len(keys))
 	}
@@ -255,15 +259,15 @@ func LoadIndex(path string) (*Index, error) {
 		return nil, fmt.Errorf("coupon: %s is not a valid coupon index file", path)
 	}
 	count := binary.BigEndian.Uint32(data[4:8])
-	want := 8 + int(count)*16
+	want := 8 + int(count)*keySize
 	if len(data) != want {
 		return nil, fmt.Errorf("coupon: index %s is corrupt: size %d, expected %d for %d entries", path, len(data), want, count)
 	}
 
-	keys := make([]key128, count)
+	keys := make([]codeKey, count)
 	for i := range keys {
-		off := 8 + i*16
-		copy(keys[i][:], data[off:off+16])
+		off := 8 + i*keySize
+		copy(keys[i][:], data[off:off+keySize])
 	}
 	return &Index{keys: keys}, nil
 }

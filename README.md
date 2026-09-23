@@ -50,7 +50,7 @@ make docker-up   # postgres + backend, using the already-built coupons/coupons.i
 Server listens on `:8080`.
 
 - `POST /order` needs an `api_key: apitest` header (configurable via `API_KEY`)
-- `coupons/coupons.idx` is committed (136 bytes): that's all you need to run it
+- `coupons/coupons.idx` is committed (96 bytes): that's all you need to run it
 - `make fetch-coupons` / `make build-coupon-index` rebuild that index from the original ~2.1GB source files (not committed, see [Coupon Validation](#coupon-validation))
 - No Postgres handy? `go run ./cmd/server` still works: it falls back to an in-memory store with a logged warning if Postgres is unreachable. This is for reviewer convenience only, a real deployment should fail fast instead of silently dropping to non-persistent storage; see the comment in `cmd/server/main.go`
 
@@ -69,7 +69,7 @@ flowchart TB
     subgraph Offline["Offline, run once"]
         direction LR
         RAW["couponbase1/2/3.gz<br/>~2.1GB"] --> BI["cmd/buildindex"]
-        BI --> IDX["coupons.idx<br/>136 bytes, committed"]
+        BI --> IDX["coupons.idx<br/>96 bytes, committed"]
     end
 
     subgraph Runtime["Runtime, every request"]
@@ -91,7 +91,7 @@ flowchart TB
     IDX -. loaded at startup .-> CV
 ```
 
-Two halves: an offline, one-time build turning ~2.1GB of raw data into a 136-byte artifact, and a runtime path that only ever touches the small loaded index.
+Two halves: an offline, one-time build turning ~2.1GB of raw data into a 96-byte artifact, and a runtime path that only ever touches the small loaded index.
 
 ```
 cmd/server        - wiring: config, DB pool, migrations, coupon index, routes, graceful shutdown
@@ -123,14 +123,14 @@ The centerpiece of this assignment.
 | couponbase3.gz | 738MB | 98,566,152 | 98,566,151 |
 | **Total** | **~2.1GB** | **313,087,705** | |
 
-- **8 valid codes** survive the rule, written to a **136-byte** index
-- The 3 files are hashed and sorted concurrently (`errgroup`), independent until the merge step, one-time cost regardless
+- **8 valid codes** survive the rule, written to a **96-byte** index
+- The 3 files are read and sorted concurrently (`errgroup`), independent until the merge step, one-time cost regardless
 
 **Why this design:**
 
 - **Build once, not every boot.** Reprocessing all three files on every boot re-pays ~2.1GB of decompression for data that never changes. `cmd/buildindex` runs once; the server just loads the small result.
-- **Sorted slices, not one shared map.** A single `map[key]bitmask` was the first design. At ~313M lines its overhead costs tens of GB of RAM. Each file's candidates are hashed, sorted, and deduplicated into a 16-byte/entry slice instead, then k-way merged. Peak memory is the sum of each file's own unique count, not a map multiplier.
-- **128-bit hashes, not 64-bit.** At ~3x10^8 lines, a 64-bit hash's collision odds are ~1-in-4000: too risky for something gating real money. 128 bits (stdlib `crypto/sha256`) makes that negligible, at a cost paid once, offline.
+- **Sorted slices, not one shared map.** A single `map[key]bitmask` was the first design. At ~313M lines its overhead costs tens of GB of RAM. Each file's candidates are sorted and deduplicated into an 11-byte/entry slice instead, then k-way merged. Peak memory is the sum of each file's own unique count, not a map multiplier.
+- **Raw codes, not hashes.** Valid codes are at most 10 bytes, so each is stored as-is in a fixed 11-byte key (length byte + zero-padded code). That gives exact matching with no collision risk, and is smaller than a 128-bit hash would be.
 - **Resumable downloads.** These files are large enough to stall mid-transfer (it happened during development). The fetch step checks size against `Content-Length` and resumes, rather than trusting a tool's exit code.
 - **Graceful on a bad file.** A truncated or corrupted source file logs a warning and the build continues with what it read, instead of aborting.
 
@@ -241,7 +241,7 @@ Not part of the OpenAPI spec, standard production hygiene:
 
 | Component | Now | To scale further |
 | --- | --- | --- |
-| Coupon validation | 136-byte index, O(log n) binary search | Shard the offline build by byte range; gzip's multistream boundaries are natural split points |
+| Coupon validation | 96-byte index, O(log n) binary search | Shard the offline build by byte range; gzip's multistream boundaries are natural split points |
 | Products | Postgres, ~10 rows | Cache (Redis) in front of `product.Repository`; interface doesn't change |
 | Orders | Postgres, one transaction per order | Read replicas for reporting |
 | API server | Single stateless process | Horizontal |
