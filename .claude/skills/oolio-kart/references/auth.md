@@ -1,6 +1,6 @@
 # Authentication and authorization
 
-Added after v1.2.0 (in `[Unreleased]`). Kept deliberately simple: the goal is to
+Added in v1.3.0. Kept deliberately simple: the goal is to
 show JWT authn/authz in Go, not a full identity system.
 
 ## Flow
