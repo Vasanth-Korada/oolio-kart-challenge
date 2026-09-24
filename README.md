@@ -142,9 +142,7 @@ Spec: [`api/openapi.yaml`](api/openapi.yaml)
 
 ## Authentication
 
-```
-POST /auth/token {username, password} → bcrypt check → signed JWT → Authorization: Bearer <jwt> → POST /order
-```
+![Authentication: high-level design](docs/diagrams/auth-hld.png)
 
 ```bash
 TOKEN=$(curl -s -X POST localhost:8080/auth/token \
@@ -179,6 +177,18 @@ curl -X POST localhost:8080/order -H "Authorization: Bearer $TOKEN" \
 - **No user probing:** unknown user and wrong password get the same `401` and the same bcrypt cost
 - **Interface-first:** handlers depend on `auth.TokenIssuer`, `auth.TokenVerifier`, `auth.UserStore`; `JWTManager` and `MemoryUserStore` implement them
 - **Bearer wins:** if both headers are sent, only the Bearer token is checked
+
+<details>
+<summary><b>Auth flow: low-level design</b> (every branch and status code)</summary>
+
+![Authentication: low-level design](docs/diagrams/auth-lld.png)
+</details>
+
+<details>
+<summary><b>Auth flow: dry run</b> (real login, Bearer order and every error path)</summary>
+
+![Authentication: dry run](docs/diagrams/auth-dry-run.png)
+</details>
 
 ---
 

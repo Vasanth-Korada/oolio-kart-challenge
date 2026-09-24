@@ -43,6 +43,14 @@ POST /order  Authorization: Bearer <jwt>
   out of messages.
 - Never log tokens or passwords.
 
+## Diagrams
+
+`docs/diagrams/auth.drawio`: HLD, LLD (every branch of `/auth/token` and the
+middleware) and a dry run captured on the Compose stack (login, Bearer order,
+13 error paths, timing, metrics). Expired, no-scope and `alg: none` tokens were
+minted with a fixed session `JWT_SECRET` and a small HMAC script. The order
+diagrams show auth as one decision and point here.
+
 ## Tests
 
 `internal/auth/*_test.go` forge tokens with the jwt library (expired, wrong

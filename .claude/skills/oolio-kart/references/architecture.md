@@ -85,5 +85,6 @@ disable CORS (it becomes `*`). Don't document otherwise.
 
 ## Diagrams
 
-`docs/diagrams/order.drawio` (HLD, LLD, dry run) and `coupon.drawio` (HLD,
-package map, LLD, dry run), with PNG exports embedded in the README.
+`docs/diagrams/order.drawio` (HLD, LLD, dry run), `coupon.drawio` (HLD,
+package map, LLD, dry run) and `auth.drawio` (HLD, LLD, dry run), with PNG
+exports embedded in the README.

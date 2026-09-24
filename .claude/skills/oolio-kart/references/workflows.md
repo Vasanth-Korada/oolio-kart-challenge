@@ -50,7 +50,9 @@ lint running alongside can make it 3× slower.
 
 ## Diagrams
 
-- Sources: `docs/diagrams/order.drawio`, `coupon.drawio` (one page per view).
+- Sources: `docs/diagrams/order.drawio`, `coupon.drawio`, `auth.drawio` (one page
+  per view). Copies live in `/Users/vasanth/Desktop/oolio/diagrams`
+  (`order-placement.drawio`, `coupon-buildindex.drawio`, `auth-jwt.drawio`); keep them in sync.
   Edit in app.diagrams.net or the VS Code draw.io extension.
 - Export every page to cropped PNGs for the README:
 
@@ -63,7 +65,11 @@ lint running alongside can make it 3× slower.
   access to viewer.diagrams.net. Rename or map outputs to the file names the
   README uses (`order-hld.png`, `order-lld.png`, `order-dry-run.png`,
   `coupon-hld.png`, `coupon-package-map.png`, `coupon-lld.png`,
-  `coupon-dry-run.png`).
+  `coupon-dry-run.png`, `auth-hld.png`, `auth-lld.png`, `auth-dry-run.png`).
+- Playwright must match the browsers in `~/Library/Caches/ms-playwright`
+  (`npm i playwright@latest` worked; a pinned older version wanted a missing build).
+- To patch an existing page without reformatting it, replace only the `value`
+  attribute of the target `mxCell` ids (escape `& < > "`), then re-export.
 - Dry-run pages show captured values. If behaviour changes, re-capture on the
   real stack rather than editing numbers by hand.
 

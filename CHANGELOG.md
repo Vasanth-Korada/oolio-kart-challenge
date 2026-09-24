@@ -6,6 +6,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+### Added
+
+- **Auth diagrams:** `docs/diagrams/auth.drawio` (HLD, LLD, dry run captured on the real stack) embedded in the README Authentication section
+
+### Changed
+
+- Order diagrams show `Authenticate` + `RequireScope` instead of `APIKeyAuth`, with the re-captured 401 message and CORS headers
+
 ## [1.3.0] - 2026-09-24
 
 ### Added
