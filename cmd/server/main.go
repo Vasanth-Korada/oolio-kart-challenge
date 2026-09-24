@@ -1,11 +1,12 @@
 // Command server runs the food-ordering HTTP API. It loads config, connects to
 // Postgres (falling back to in-memory storage), runs migrations, loads the
-// coupon index and serves until SIGINT or SIGTERM.
+// coupon index, sets up JWT auth and serves until SIGINT or SIGTERM.
 package main
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/auth"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/config"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/coupon"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/httpapi"
@@ -32,7 +34,10 @@ func main() {
 }
 
 func run() error {
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
 	logger := logging.New(cfg.LogLevel)
 	slog.SetDefault(logger)
 
@@ -47,6 +52,11 @@ func run() error {
 		dbPinger    httpapi.Pinger
 		storage     string
 	)
+
+	tokens, users, err := newAuth(cfg, logger)
+	if err != nil {
+		return err
+	}
 
 	pool, err := postgres.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -88,11 +98,15 @@ func run() error {
 		Order:      &httpapi.OrderHandler{Service: orderService},
 		Health:     &httpapi.HealthHandler{DB: dbPinger, Storage: storage},
 		Logger:     logger,
-		APIKey:     cfg.APIKey,
 		CORSOrigin: cfg.CORSOrigin,
+
+		Auth:          &httpapi.AuthHandler{Users: users, Tokens: tokens, Metrics: met},
+		TokenVerifier: tokens,
+		APIKey:        cfg.APIKey,
 
 		Metrics:        met,
 		MetricsHandler: met.Handler(),
+		AuthMetrics:    met,
 	})
 
 	srv := &http.Server{
@@ -144,6 +158,34 @@ func loadCouponValidator(path string, logger *slog.Logger) (coupon.Validator, in
 	}
 	logger.Info("coupon: index loaded", slog.String("path", path), slog.Int("valid_codes", idx.Len()))
 	return idx, idx.Len(), nil
+}
+
+// newAuth builds the JWT manager and the user store holding the one
+// configured demo user. With no JWT_SECRET it generates a random secret, so
+// tokens stop working on restart and are not shared across replicas.
+func newAuth(cfg config.Config, logger *slog.Logger) (*auth.JWTManager, *auth.MemoryUserStore, error) {
+	secret := []byte(cfg.JWTSecret)
+	if len(secret) == 0 {
+		var err error
+		if secret, err = auth.RandomSecret(); err != nil {
+			return nil, nil, err
+		}
+		logger.Warn("auth: JWT_SECRET not set, using a random secret; tokens will not survive a restart")
+	}
+	tokens, err := auth.NewJWTManager(secret, cfg.JWTTTL)
+	if err != nil {
+		return nil, nil, fmt.Errorf("auth: %w", err)
+	}
+
+	users, err := auth.NewMemoryUserStore()
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := users.Add(cfg.AuthUsername, cfg.AuthPassword, auth.ScopeCreateOrder); err != nil {
+		return nil, nil, fmt.Errorf("auth: %w", err)
+	}
+	logger.Info("auth: JWT enabled", slog.String("user", cfg.AuthUsername), slog.String("token_ttl", cfg.JWTTTL.String()))
+	return tokens, users, nil
 }
 
 // noopPinger backs /readyz when running on the in-memory fallback: there's

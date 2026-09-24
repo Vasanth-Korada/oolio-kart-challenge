@@ -6,6 +6,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+### Added
+
+- **JWT auth:** `POST /auth/token` exchanges a username and password for an HS256 access token (`golang-jwt/jwt/v5`, 15 min default)
+- **Bearer auth on `POST /order`:** `Authorization: Bearer <token>` with the `create_order` scope; the `api_key` header still works
+- **Hardening:** algorithm pinned to HS256 (`alg: none` rejected), `iss`, `aud` and `exp` required, secret of at least 32 bytes, bcrypt passwords, one 401 message for unknown user and wrong password, `Cache-Control: no-store` on tokens
+- **Config:** `JWT_SECRET` (random per boot when unset), `JWT_TTL`, `AUTH_USERNAME`, `AUTH_PASSWORD`
+- **Metric:** `oolio_auth_attempts_total{method,result}` and an Auth row on the Grafana dashboard
+- OpenAPI `bearerAuth` scheme and `/auth/token` path; Postman Auth folder (19 requests, 32 assertions); `make traffic` sends JWT traffic
+
+### Changed
+
+- `APIKeyAuth` replaced by `Authenticate` + `RequireScope`; a 401 now carries `WWW-Authenticate: Bearer`
+- `config.Load` returns an error (invalid `JWT_TTL`)
+- CORS allows the `Authorization` header
+- Middleware and contract tests moved to `testify/suite`
+
 ## [1.2.0] - 2026-09-24
 
 ### Added

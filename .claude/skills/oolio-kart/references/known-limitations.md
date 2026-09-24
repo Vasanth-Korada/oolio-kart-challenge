@@ -1,8 +1,8 @@
 # Known limitations
 
 Found in self-review. This is the full list; the README's Known Limitations
-table shows the main ones (everything except the last four rows). When one is
-fixed, remove it here and from the README if it is listed there, and add a
+table shows the main ones (it leaves out the coupon-check order, one worker per
+file, the `"01"` id and the empty CORS origin rows). When one is fixed, remove it here and from the README if it is listed there, and add a
 CHANGELOG entry.
 
 | Limitation | Where | Planned fix |
@@ -21,6 +21,9 @@ CHANGELOG entry.
 | One worker per coupon file | `coupon.Build` | Split each file by gzip member / byte range |
 | `"01"` works on `GET /product/01` but not as an order `productId` | handler vs service | Normalise ids in one place |
 | `CORS_ALLOWED_ORIGIN=""` can't disable CORS | `config.getEnv` | Distinguish unset from empty |
+| One demo user from env vars, no `users` table | `auth.MemoryUserStore` | Postgres `users` table behind `auth.UserStore` |
+| No refresh tokens or revocation | `auth.JWTManager` | Refresh token rotation; `jti` denylist |
+| No rate limit on `POST /auth/token` | `AuthHandler.Token` | Per-IP and per-user limiter |
 
 Fixed so far (don't re-add): huge quantity returned 500 (capped at 1000 → 422),
 truncated gzip line indexed as a code, invalid `.golangci.yml` v1 key.

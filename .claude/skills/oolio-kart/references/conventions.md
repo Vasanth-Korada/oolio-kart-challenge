@@ -25,6 +25,10 @@
 
 ## Go code
 
+- Dependencies must keep `go.mod` at `go 1.25.0` (CI uses Go 1.25). `@latest`
+  of `golang.org/x/*` may require a newer Go and bump the directive: pin an older
+  version (e.g. `x/crypto v0.55.0`) and check `git diff go.mod` after `go get`.
+
 - Idiomatic Go, `gofmt`, small packages, sentinel errors compared with `errors.Is`.
 - Interface first, but only at real seams (a consumer needs it, or tests need a
   fake). Define interfaces where they are consumed.
@@ -36,7 +40,9 @@
 
 - `testify/suite` for any test file you create or touch (converted so far:
   `internal/coupon`, `internal/platform/metrics`, `order/service_test.go`,
-  `httpapi/order_handler_test.go`, `httpapi/metrics_test.go`).
+  `httpapi/order_handler_test.go`, `httpapi/metrics_test.go`,
+  `httpapi/middleware_test.go`, `httpapi/contract_test.go`,
+  `httpapi/auth_handler_test.go`, `internal/auth`, `internal/config`).
   Other packages still use plain `t.Run` tables; convert them when touched.
 - Table-driven cases inside suite methods (`s.Run(tt.name, ...)`).
 - For a bug fix, show the new test fails without the fix (temporarily revert, run,

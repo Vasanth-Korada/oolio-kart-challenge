@@ -18,6 +18,7 @@ import (
 // Compile-time checks: Metrics satisfies the interfaces its consumers own.
 var (
 	_ httpapi.HTTPMetrics = (*metrics.Metrics)(nil)
+	_ httpapi.AuthMetrics = (*metrics.Metrics)(nil)
 	_ order.Recorder      = (*metrics.Metrics)(nil)
 )
 
@@ -74,6 +75,17 @@ func (s *MetricsSuite) TestOrderEvents() {
 	s.Contains(body, "oolio_orders_total_amount_count 2")
 	s.Contains(body, `oolio_coupon_checks_total{result="valid"} 1`)
 	s.Contains(body, `oolio_coupon_checks_total{result="invalid"} 1`)
+}
+
+func (s *MetricsSuite) TestAuthAttempts() {
+	s.m.AuthAttempt("password", true)
+	s.m.AuthAttempt("bearer", false)
+	s.m.AuthAttempt("bearer", false)
+
+	body := s.scrape()
+
+	s.Contains(body, `oolio_auth_attempts_total{method="password",result="success"} 1`)
+	s.Contains(body, `oolio_auth_attempts_total{method="bearer",result="failure"} 2`)
 }
 
 func (s *MetricsSuite) TestStartupGauges() {

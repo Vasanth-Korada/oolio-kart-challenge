@@ -12,6 +12,18 @@ type HTTPMetrics interface {
 	RequestFinished(method, route string, status int, took time.Duration)
 }
 
+// AuthMetrics counts authentication attempts by method ("password",
+// "bearer" or "api_key") and outcome. Implementations must be safe for
+// concurrent use.
+type AuthMetrics interface {
+	AuthAttempt(method string, ok bool)
+}
+
+// noAuthMetrics is used when RouterDeps.AuthMetrics is nil.
+type noAuthMetrics struct{}
+
+func (noAuthMetrics) AuthAttempt(string, bool) {}
+
 // unmatchedRoute labels requests no route matched (404s, wrong methods,
 // CORS preflights), so raw paths never become label values.
 const unmatchedRoute = "unmatched"

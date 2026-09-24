@@ -1,7 +1,8 @@
 // Package metrics is the Prometheus implementation of the app's metrics:
 // HTTP request rate, errors and latency, order and coupon business events,
-// and Go runtime and process metrics. Other packages depend on their own
-// small interfaces (httpapi.HTTPMetrics, order.Recorder); this package
+// authentication attempts, and Go runtime and process metrics. Other packages
+// depend on their own small interfaces (httpapi.HTTPMetrics,
+// httpapi.AuthMetrics, order.Recorder); this package
 // satisfies them, so only it imports the Prometheus client.
 package metrics
 
@@ -30,6 +31,7 @@ type Metrics struct {
 	orderRejections *prometheus.CounterVec
 	orderAmount     prometheus.Histogram
 	couponChecks    *prometheus.CounterVec
+	authAttempts    *prometheus.CounterVec
 
 	couponIndexCodes prometheus.Gauge
 	storage          *prometheus.GaugeVec
@@ -70,6 +72,10 @@ func New() *Metrics {
 			Namespace: namespace, Subsystem: "coupon", Name: "checks_total",
 			Help: "Coupon codes checked against the index, by result.",
 		}, []string{"result"}),
+		authAttempts: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: namespace, Subsystem: "auth", Name: "attempts_total",
+			Help: "Authentication attempts, by method (password, bearer, api_key) and result.",
+		}, []string{"method", "result"}),
 		couponIndexCodes: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace, Subsystem: "coupon", Name: "index_codes",
 			Help: "Valid codes in the loaded coupon index (0 when it is unavailable).",
@@ -82,6 +88,7 @@ func New() *Metrics {
 	m.registry.MustRegister(
 		m.httpRequests, m.httpDuration, m.httpInFlight,
 		m.ordersPlaced, m.orderRejections, m.orderAmount, m.couponChecks,
+		m.authAttempts,
 		m.couponIndexCodes, m.storage,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
@@ -126,6 +133,16 @@ func (m *Metrics) CouponChecked(valid bool) {
 		result = "valid"
 	}
 	m.couponChecks.WithLabelValues(result).Inc()
+}
+
+// AuthAttempt records one authentication attempt. method is "password"
+// (POST /auth/token), "bearer" or "api_key".
+func (m *Metrics) AuthAttempt(method string, ok bool) {
+	result := "failure"
+	if ok {
+		result = "success"
+	}
+	m.authAttempts.WithLabelValues(method, result).Inc()
 }
 
 // SetCouponIndexCodes records how many valid codes the loaded index holds.

@@ -25,6 +25,10 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-oolio}:${POSTGRES_PASSWORD:-oolio}@postgres:5432/${POSTGRES_DB:-oolio}?sslmode=disable
       API_KEY: ${API_KEY:-apitest}
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_TTL: ${JWT_TTL:-15m}
+      AUTH_USERNAME: ${AUTH_USERNAME:-demo}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-demo1234}
       PORT: "8080"
       LOG_LEVEL: info
       COUPON_INDEX_PATH: coupons/coupons.idx

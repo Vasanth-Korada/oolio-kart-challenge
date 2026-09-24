@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "6dd0237a-e263-404e-b0a2-8a56a97a7af9",
 		"name": "Oolio Kart Challenge",
-		"description": "Food-ordering API from the Oolio advanced backend challenge. Import alongside the `local` environment and run `make docker-up` first.\n\nCovers every documented endpoint plus the error paths called out in the README (401/403/422), so the collection doubles as a runnable reference for the API's behavior.",
+		"description": "Food-ordering API from the Oolio advanced backend challenge. Import alongside the `local` environment and run `make docker-up` first.\n\nCovers every documented endpoint plus the error paths called out in the README (401/403/422), plus the JWT flow (Auth folder: get a token, then order with it), so the collection doubles as a runnable reference for the API's behavior.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
@@ -107,6 +107,141 @@
 							"variable": [{"key": "id", "value": "abc"}]
 						},
 						"description": "productId must parse as an integer."
+					}
+				}
+			]
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Get Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 200', () => pm.response.to.have.status(200));",
+									"const body = pm.response.json();",
+									"pm.test('token type is Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));",
+									"pm.test('token is a JWT', () => pm.expect(body.accessToken.split('.')).to.have.lengthOf(3));",
+									"pm.test('expiresIn is positive', () => pm.expect(body.expiresIn).to.be.above(0));",
+									"pm.collectionVariables.set('accessToken', body.accessToken);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/token",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "token"]
+						},
+						"description": "Exchanges the demo user's credentials for a JWT and saves it as {{accessToken}} for the requests below."
+					}
+				},
+				{
+					"name": "Get Token - Wrong Password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 401', () => pm.response.to.have.status(401));",
+									"pm.test('message does not say which field was wrong', () => pm.expect(pm.response.json().message).to.eql('invalid username or password'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"wrong-password\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/token",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "token"]
+						},
+						"description": "Unknown user and wrong password return the same 401, so usernames can't be probed."
+					}
+				},
+				{
+					"name": "Place Order - Bearer Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 200', () => pm.response.to.have.status(200));",
+									"pm.test('order has an id', () => pm.expect(pm.response.json().id).to.be.a('string').and.not.empty);"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{accessToken}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    { \"productId\": \"2\", \"quantity\": 1 }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["order"]
+						},
+						"description": "Same endpoint as the api_key requests, authenticated with the JWT from Get Token instead."
+					}
+				},
+				{
+					"name": "Place Order - Tampered Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 401', () => pm.response.to.have.status(401));",
+									"pm.test('WWW-Authenticate names the error', () => pm.expect(pm.response.headers.get('WWW-Authenticate')).to.include('invalid_token'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{accessToken}}tampered"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    { \"productId\": \"2\", \"quantity\": 1 }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["order"]
+						},
+						"description": "A token whose signature no longer matches is rejected with 401."
 					}
 				}
 			]
@@ -451,6 +586,9 @@
 	],
 	"variable": [
 		{"key": "baseUrl", "value": "http://localhost:8080"},
-		{"key": "apiKey", "value": "apitest"}
+		{"key": "apiKey", "value": "apitest"},
+		{"key": "username", "value": "demo"},
+		{"key": "password", "value": "demo1234"},
+		{"key": "accessToken", "value": ""}
 	]
 }

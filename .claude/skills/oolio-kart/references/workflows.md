@@ -12,7 +12,8 @@ go run ./cmd/server            # no Postgres → in-memory fallback, warning log
 curl -s localhost:8080/readyz  # {"status":"ready","storage":"postgres"}
 ```
 
-`POST /order` needs `api_key: apitest`.
+`POST /order` needs `api_key: apitest`, or `Authorization: Bearer <token>` from
+`POST /auth/token` with `{"username":"demo","password":"demo1234"}`.
 
 ## Check (same as CI)
 
@@ -29,7 +30,7 @@ Unit tests aren't enough for anything touching HTTP, SQL or validation:
 
 1. `docker compose -f deploy/docker-compose.yml up -d --build` and wait for `/readyz`.
 2. `curl` the happy path and each changed error path; check status and body.
-3. `make postman-test` (newman; currently 15 requests, 22 assertions, all must pass).
+3. `make postman-test` (newman; currently 19 requests, 32 assertions, all must pass).
 4. `docker compose -f deploy/docker-compose.yml down` when done (without `-v`, so
    the volume survives).
 5. If metrics changed, also `curl -s localhost:8080/metrics | grep ^oolio_` and

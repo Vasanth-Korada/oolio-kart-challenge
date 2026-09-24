@@ -15,13 +15,14 @@ Go backend for Oolio's food-ordering OpenAPI 3.1 spec, with coupon validation ov
 2. [Quickstart](#quickstart)
 3. [Configuration](#configuration)
 4. [API](#api)
-5. [Architecture](#architecture)
-6. [Coupon Validation](#coupon-validation)
-7. [Observability](#observability)
-8. [Design Decisions](#design-decisions)
-9. [Known Limitations](#known-limitations)
-10. [Testing](#testing)
-11. [Contributing](#contributing)
+5. [Authentication](#authentication)
+6. [Architecture](#architecture)
+7. [Coupon Validation](#coupon-validation)
+8. [Observability](#observability)
+9. [Design Decisions](#design-decisions)
+10. [Known Limitations](#known-limitations)
+11. [Testing](#testing)
+12. [Contributing](#contributing)
 
 ---
 
@@ -32,14 +33,15 @@ Go backend for Oolio's food-ordering OpenAPI 3.1 spec, with coupon validation ov
 - **Duplicate items merged:** the same `productId` twice becomes one line item
 - **Coupon validation at scale:** 313M codes → 96-byte index, O(log n) lookup
 - **5% coupon discount:** documented extension to the base spec
-- **API-key auth:** constant-time comparison on `POST /order`
+- **JWT auth:** `POST /auth/token` issues HS256 tokens; `POST /order` checks the Bearer token and its `create_order` scope
+- **API-key auth:** still accepted on `POST /order` (base spec), constant-time comparison
 - **Postgres persistence:** versioned migrations, one transaction per order
 - **Structured logging:** JSON logs with a request id
 - **Health checks:** `/healthz` (liveness), `/readyz` (readiness + storage mode)
 - **Metrics:** Prometheus `/metrics` (HTTP, orders, coupons, Go runtime) with a Grafana dashboard
 - **Docker:** one command, distroless runtime image
 - **CI on every push:** gofmt, vet, golangci-lint, build, race-enabled tests
-- **Postman collection:** 15 requests, each with assertions
+- **Postman collection:** 19 requests, each with assertions
 
 ---
 
@@ -49,7 +51,7 @@ Go backend for Oolio's food-ordering OpenAPI 3.1 spec, with coupon validation ov
 make docker-up          # Postgres + API on :8080
 ```
 
-- `POST /order` needs the header `api_key: apitest`
+- `POST /order` needs the header `api_key: apitest`, or a JWT from `POST /auth/token` (user `demo`, password `demo1234`)
 - `coupons/coupons.idx` is committed, so no coupon download is needed to run
 - No Docker? `go run ./cmd/server` falls back to in-memory storage (reviewer convenience only)
 
@@ -79,6 +81,10 @@ make docker-up          # Postgres + API on :8080
 | `COUPON_INDEX_PATH` | `coupons/coupons.idx` | Coupon index file |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `CORS_ALLOWED_ORIGIN` | `*` | Allowed browser origin for the web frontend |
+| `JWT_SECRET` | random per boot | HS256 signing secret, at least 32 bytes; unset means tokens die on restart |
+| `JWT_TTL` | `15m` | Access token lifetime (Go duration) |
+| `AUTH_USERNAME` | `demo` | Demo user for `POST /auth/token` |
+| `AUTH_PASSWORD` | `demo1234` | Demo user's password (bcrypt-hashed at startup) |
 
 Docker Compose credentials are overridable via `deploy/.env.example`, which also lists the Grafana Cloud variables (`GRAFANA_CLOUD_PROM_URL`, `GRAFANA_CLOUD_PROM_USER`, `GRAFANA_CLOUD_API_TOKEN`).
 
@@ -92,7 +98,8 @@ Spec: [`api/openapi.yaml`](api/openapi.yaml)
 | --- | --- | --- | --- | --- |
 | `GET` | `/product` | none | `200` list | |
 | `GET` | `/product/{id}` | none | `200` product | `400` non-integer id, `404` not found |
-| `POST` | `/order` | `api_key` | `200` order | `400` bad JSON, `401` no key, `403` wrong key, `422` validation |
+| `POST` | `/auth/token` | none | `200` token | `400` bad JSON, `401` wrong credentials |
+| `POST` | `/order` | Bearer JWT or `api_key` | `200` order | `400` bad JSON, `401` no or bad credentials, `403` wrong key or missing scope, `422` validation |
 | `GET` | `/healthz` | none | `200` | |
 | `GET` | `/readyz` | none | `200` + storage mode | `503` database down |
 | `GET` | `/metrics` | none | `200` Prometheus text format | |
@@ -133,6 +140,48 @@ Spec: [`api/openapi.yaml`](api/openapi.yaml)
 
 ---
 
+## Authentication
+
+```
+POST /auth/token {username, password} → bcrypt check → signed JWT → Authorization: Bearer <jwt> → POST /order
+```
+
+```bash
+TOKEN=$(curl -s -X POST localhost:8080/auth/token \
+  -d '{"username":"demo","password":"demo1234"}' | jq -r .accessToken)
+
+curl -X POST localhost:8080/order -H "Authorization: Bearer $TOKEN" \
+  -d '{"items":[{"productId":"1","quantity":1}]}'
+```
+
+```jsonc
+// POST /auth/token → 200
+{ "accessToken": "eyJhbGciOiJIUzI1NiIs...", "tokenType": "Bearer", "expiresIn": 900 }
+
+// token payload
+{ "sub": "demo", "scope": "create_order", "iss": "oolio-kart", "aud": ["oolio-kart-api"],
+  "iat": 1790245907, "exp": 1790246807, "jti": "c06627c2-af0a-4ed7-b077-e429b6cc3712" }
+```
+
+| Request to `POST /order` | Result |
+| --- | --- |
+| Valid Bearer token with `create_order` scope | `200` |
+| Correct `api_key` header (base spec) | `200` |
+| No credentials | `401` + `WWW-Authenticate: Bearer` |
+| Expired, tampered, wrong-issuer or `alg: none` token | `401` + `WWW-Authenticate: Bearer error="invalid_token"` |
+| Valid token without the `create_order` scope | `403` |
+| Wrong `api_key` | `403` |
+
+- **Library:** [`golang-jwt/jwt/v5`](https://github.com/golang-jwt/jwt), passwords with `golang.org/x/crypto/bcrypt`
+- **Authentication vs authorization:** `Authenticate` middleware verifies the caller and puts the claims in the context; `RequireScope("create_order")` decides access
+- **Algorithm pinned:** only HS256 is accepted, so `alg: none` and algorithm-confusion tokens fail
+- **Claims checked:** signature, `iss`, `aud`, `exp` (required), `iat`, 30s clock-skew leeway
+- **No user probing:** unknown user and wrong password get the same `401` and the same bcrypt cost
+- **Interface-first:** handlers depend on `auth.TokenIssuer`, `auth.TokenVerifier`, `auth.UserStore`; `JWTManager` and `MemoryUserStore` implement them
+- **Bearer wins:** if both headers are sent, only the Bearer token is checked
+
+---
+
 ## Architecture
 
 ![Order placement: high-level design](docs/diagrams/order-hld.png)
@@ -158,7 +207,8 @@ Spec: [`api/openapi.yaml`](api/openapi.yaml)
 ```
 cmd/server         wiring: config, DB, migrations, coupon index, routes, graceful shutdown
 cmd/buildindex     offline tool: coupon source files → coupons.idx
-internal/httpapi   handlers, middleware, error envelope
+internal/httpapi   handlers, middleware (incl. auth), error envelope
+internal/auth      JWT issue/verify, user store (bcrypt), claims and scopes
 internal/product   model, service, repositories (Postgres + in-memory)
 internal/order     model, service (validation, pricing, coupon), repositories
 internal/coupon    Validator, Source, build pipeline, index file format
@@ -249,12 +299,13 @@ Go API /metrics → Grafana Alloy (scrape every 15s) → Grafana Cloud Prometheu
 | `orders_total_amount` | histogram (dollars) | |
 | `coupon_checks_total` | counter | `result` |
 | `coupon_index_codes` | gauge | |
+| `auth_attempts_total` | counter | `method` (`password`, `bearer`, `api_key`), `result` |
 | `storage_info` | gauge | `mode` |
 
 Plus the standard `go_*` and `process_*` metrics.
 
 - **Route labels are patterns** (`GET /product/{id}`), never raw paths, so series stay bounded
-- **Interface-first:** `order.Recorder` and `httpapi.HTTPMetrics`; only `internal/platform/metrics` imports Prometheus
+- **Interface-first:** `order.Recorder`, `httpapi.HTTPMetrics` and `httpapi.AuthMetrics`; only `internal/platform/metrics` imports Prometheus
 - **Private registry:** each `metrics.New()` is independent, so tests don't share state
 
 **Run it**
@@ -272,6 +323,9 @@ Plus the standard `go_*` and `process_*` metrics.
 | Stdlib `net/http`, no framework | Go 1.22 routing covers methods and path params |
 | `pgx`, no ORM | Plain parameterized SQL, full control |
 | UUID v4 order ids | Not guessable, no id enumeration (IDOR) |
+| JWT (HS256) next to `api_key` | Stateless per-user tokens with scopes; `api_key` kept so base-spec clients don't break |
+| HS256, not RS256 | One service signs and verifies, so a shared secret is enough; RS256 + JWKS when other services verify |
+| Scope checked in its own middleware | Authentication and authorization stay separate and testable |
 | Server-side pricing | Client prices are never trusted |
 | `unit_price` stored per line | Later price changes can't rewrite past orders |
 | One transaction per order | Never an order without its items |
@@ -300,6 +354,9 @@ Found in self-review; planned next.
 | No request body size limit | `http.MaxBytesReader` |
 | Migrations have no lock across replicas | `pg_advisory_lock` |
 | `/metrics` is public on the API port | Separate internal port or network policy |
+| One demo user from env vars, no `users` table | Postgres `users` table behind `auth.UserStore` |
+| No refresh tokens or revocation (tokens live until `exp`) | Refresh token rotation; `jti` denylist |
+| No rate limit on `POST /auth/token` | Per-IP and per-user limiter |
 
 ---
 
@@ -309,10 +366,12 @@ Found in self-review; planned next.
 | --- | --- | --- |
 | Coupon | `internal/coupon/*_test.go` | Build rules, truncated files, index format, real data (`testify/suite`) |
 | Service | `service_test.go` | Validation, pricing, merging, coupons |
+| Auth | `internal/auth/*_test.go` | Issue/verify, expired, forged, `alg: none`, wrong iss/aud, bcrypt login |
 | Handler | `*_handler_test.go` | Status codes and error mapping |
+| Middleware | `middleware_test.go` | Bearer vs `api_key`, 401 vs 403, scope check, CORS, request id |
 | Repository | `*_repository_test.go` | In-memory; Postgres with `-tags integration` |
-| Contract | `contract_test.go` | Every response validated against `api/openapi.yaml` |
-| End to end | `postman/` | 15 requests incl. all error paths |
+| Contract | `contract_test.go` | Every response validated against `api/openapi.yaml`, incl. `/auth/token` |
+| End to end | `postman/` | 19 requests incl. all error paths and the JWT flow |
 
 - Table-driven cases throughout, run with `-race` in CI
 - Real-data check: `HAPPYHRS`, `FIFTYOFF` valid, `SUPER100` invalid

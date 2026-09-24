@@ -41,6 +41,7 @@ cost (the submission is under review), so treat them as fixed.
 | Understand packages, layers, request path, config, DB schema | [references/architecture.md](references/architecture.md) |
 | Anything touching coupons, `coupons.idx`, `cmd/buildindex` | [references/coupon-index.md](references/coupon-index.md) |
 | `POST /order`: validation, pricing, errors, status codes | [references/order-flow.md](references/order-flow.md) |
+| JWT auth, `POST /auth/token`, `api_key`, scopes | [references/auth.md](references/auth.md) |
 | Git, commits, tests, README/CHANGELOG style, versioning, CI | [references/conventions.md](references/conventions.md) |
 | Run, test, live-verify, rebuild the index, diagrams, release | [references/workflows.md](references/workflows.md) |
 | Metrics, Grafana dashboard, Alloy / Grafana Cloud | [references/observability.md](references/observability.md) |
@@ -53,6 +54,7 @@ cmd/server         wiring, graceful shutdown, Postgres-or-memory fallback
 cmd/buildindex     offline: coupons/raw/*.gz → coupons/coupons.idx
 internal/httpapi   router, middleware, handlers, error envelope
 internal/order     PlaceOrder: validate, merge, price, coupon, store (1 tx)
+internal/auth      JWT (golang-jwt v5, HS256) issue/verify, bcrypt user store
 internal/product   catalog (Postgres or in-memory seed)
 internal/coupon    Validator, Index, Source, build pipeline, CPX2 file format
 internal/platform  pgx pool + migrations, JSON logger, Prometheus metrics, UUID v4

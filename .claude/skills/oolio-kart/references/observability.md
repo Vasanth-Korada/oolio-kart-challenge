@@ -15,6 +15,7 @@ Added in v1.2.0.
   compile time in `metrics_test.go`):
   - `httpapi.HTTPMetrics`: `RequestStarted`, `RequestFinished(method, route, status, took)`
   - `order.Recorder`: `OrderPlaced`, `OrderRejected(reason)`, `CouponChecked(valid)`
+  - `httpapi.AuthMetrics`: `AuthAttempt(method, ok)` (nil-safe via `noAuthMetrics`)
 - `httpapi.Metrics` middleware resolves the route **before** serving with
   `mux.Handler(r)`, because inner middleware passes request copies and the mux's
   pattern never reaches the outer layer. Unmatched → `unmatched`; `/metrics` itself
@@ -26,7 +27,10 @@ Added in v1.2.0.
 `http_requests_total{method,route,status}`, `http_request_duration_seconds{method,route}`,
 `http_requests_in_flight`, `orders_placed_total{coupon}`, `orders_rejected_total{reason}`,
 `orders_total_amount` (histogram, dollars), `coupon_checks_total{result}`,
-`coupon_index_codes`, `storage_info{mode}`, plus `go_*` and `process_*`.
+`coupon_index_codes`, `storage_info{mode}`, `auth_attempts_total{method,result}`
+(method `password` | `bearer` | `api_key`), plus `go_*` and `process_*`. The
+dashboard has an Auth row (attempts/min, failure ratio); `make traffic` sends JWT
+traffic including tampered tokens and wrong passwords.
 
 Adding a metric: add the collector in `metrics.New`, a method on `Metrics`, the
 method on the consumer's interface (and its no-op), a panel in the dashboard

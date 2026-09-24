@@ -15,7 +15,8 @@ feature (`product`, `order`, `coupon`), not by layer.
   `Logging` → `CORS`. `Metrics` sits outside `Recover` so recovered panics count as 500.
   `chain()` wraps in reverse, so the first in the list is outermost.
 - Routes (Go 1.22 `ServeMux` patterns): `GET /product`, `GET /product/{id}`,
-  `POST /order` (wrapped in `APIKeyAuth`), `GET /healthz`, `GET /readyz`, and
+  `POST /auth/token`, `POST /order` (wrapped in `Authenticate` + `RequireScope`,
+  see [auth.md](auth.md)), `GET /healthz`, `GET /readyz`, and
   `GET /metrics` when `RouterDeps.MetricsHandler` is set.
 - Wrong method on a known path → 405 from `ServeMux` (plain text, not the JSON
   envelope). Unknown path → 404.
@@ -26,7 +27,9 @@ Subtlety worth knowing: `Logging` sits inside `Recover`, so a panic unwinds past
 
 ## Startup (`cmd/server`)
 
-1. `config.Load()` from env; JSON logger via `platform/logging`; `metrics.New()`.
+1. `config.Load()` from env (errors on a bad `JWT_TTL`); JSON logger via
+   `platform/logging`; `metrics.New()`; `newAuth` builds the `JWTManager` (random
+   secret + warning when `JWT_SECRET` is unset) and the one-user `MemoryUserStore`.
 2. `postgres.Connect` (pool + ping). On failure: warn and fall back to in-memory
    repositories (reviewer convenience only; production should fail fast).
    `/readyz` reports `"storage": "postgres"` or `"in-memory (fallback)"`; the
@@ -49,6 +52,9 @@ Subtlety worth knowing: `Logging` sits inside `Recover`, so a panic unwinds past
 | `COUPON_INDEX_PATH` | `coupons/coupons.idx` |
 | `LOG_LEVEL` | `info` |
 | `CORS_ALLOWED_ORIGIN` | `*` |
+| `JWT_SECRET` | none: random 32 bytes per boot |
+| `JWT_TTL` | `15m` |
+| `AUTH_USERNAME` / `AUTH_PASSWORD` | `demo` / `demo1234` |
 
 The `GRAFANA_CLOUD_*` variables in `deploy/.env` are read by Alloy in Compose,
 not by the Go server.

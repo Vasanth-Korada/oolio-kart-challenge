@@ -4,8 +4,9 @@
 
 1. Middleware: `RequestID` (reuses `X-Request-Id` or generates a UUID) →
    `Recover` → `Logging` → `CORS` (OPTIONS preflight → 204 and stops).
-2. `ServeMux` matches `POST /order` → `APIKeyAuth`: missing `api_key` header →
-   401, mismatch (constant-time compare) → 403.
+2. `ServeMux` matches `POST /order` → `Authenticate` → `RequireScope("create_order")`
+   (see [auth.md](auth.md)). Bearer JWT checked first; else `api_key`
+   (constant-time; wrong → 403); neither → 401. Token without the scope → 403.
 3. `OrderHandler.Create`: JSON decode fails → 400 `invalid_body`. Maps request
    items to `order.Item` and calls `Service.PlaceOrder`.
 4. `order.service.PlaceOrder` (`internal/order/service.go`):
@@ -35,8 +36,8 @@
 | 200 | order placed |
 | 204 | CORS preflight |
 | 400 | malformed JSON |
-| 401 | no `api_key` header |
-| 403 | wrong `api_key` |
+| 401 | no credentials, or a bad/expired/tampered Bearer token |
+| 403 | wrong `api_key`, or a token without `create_order` |
 | 405 | wrong method on `/order` (plain text) |
 | 422 | empty items, quantity out of 1..1000, unknown product, invalid coupon |
 | 500 | unexpected (DB down, panic) |
