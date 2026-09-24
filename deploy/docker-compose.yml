@@ -31,5 +31,48 @@ services:
     ports:
       - "8080:8080"
 
+  # Profile "cloud": pushes the API's metrics to Grafana Cloud.
+  # Needs GRAFANA_CLOUD_* in deploy/.env (see .env.example).
+  alloy:
+    image: grafana/alloy:v1.19.2
+    profiles: ["cloud"]
+    depends_on:
+      - backend
+    command: ["run", "--server.http.listen-addr=0.0.0.0:12345", "/etc/alloy/config.alloy"]
+    environment:
+      GRAFANA_CLOUD_PROM_URL: ${GRAFANA_CLOUD_PROM_URL:-}
+      GRAFANA_CLOUD_PROM_USER: ${GRAFANA_CLOUD_PROM_USER:-}
+      GRAFANA_CLOUD_API_TOKEN: ${GRAFANA_CLOUD_API_TOKEN:-}
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+    ports:
+      - "12345:12345"
+
+  # Profile "local": Prometheus + Grafana with the dashboard preloaded.
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    profiles: ["local"]
+    depends_on:
+      - backend
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:13.2.2
+    profiles: ["local"]
+    depends_on:
+      - prometheus
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/oolio-kart.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+
 volumes:
   postgres_data:

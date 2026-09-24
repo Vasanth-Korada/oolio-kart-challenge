@@ -16,6 +16,7 @@ CHANGELOG entry.
 | A panic skips the access log line | middleware order in `router.go` | Put `Logging` outside `Recover` |
 | No request body size limit | `OrderHandler.Create` | `http.MaxBytesReader` |
 | Migrations have no lock across replicas | `postgres.Migrate` | `pg_advisory_lock` |
+| `/metrics` is public on the API port | `httpapi.NewRouter` | Separate internal port or network policy |
 | Coupon checked after the product lookups | `service.PlaceOrder` | Check it first (in-memory, cheap) |
 | One worker per coupon file | `coupon.Build` | Split each file by gzip member / byte range |
 | `"01"` works on `GET /product/01` but not as an order `productId` | handler vs service | Normalise ids in one place |

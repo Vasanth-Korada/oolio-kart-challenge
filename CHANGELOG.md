@@ -6,6 +6,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+### Added
+
+- **Metrics:** Prometheus `/metrics` with HTTP rate, errors and latency (by route pattern), orders placed and rejected, order totals, coupon checks, index size, storage mode, Go runtime and process metrics
+- **Grafana dashboard:** `deploy/grafana/dashboards/oolio-kart.json` (overview, HTTP, orders & coupons, Go runtime)
+- **Grafana Cloud:** Alloy config and a `cloud` Compose profile that push metrics with credentials from `deploy/.env`
+- **Local stack:** `local` Compose profile with Prometheus and Grafana, dashboard preloaded
+- `make observability-local`, `make observability-cloud`, `make traffic` (`scripts/loadgen.sh`)
+
+### Changed
+
+- `order.NewService` takes an `order.Recorder` (nil for none); `RouterDeps` takes optional `Metrics` and `MetricsHandler`
+- `make docker-down` stops the observability containers too
+
 ## [1.1.1] - 2026-09-24
 
 ### Fixed

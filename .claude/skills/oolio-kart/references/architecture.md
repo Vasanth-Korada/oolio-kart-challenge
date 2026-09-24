@@ -11,10 +11,12 @@ feature (`product`, `order`, `coupon`), not by layer.
 
 `cmd/server/main.go` → `httpapi.NewRouter`:
 
-- Global middleware, outermost first: `RequestID` → `Recover` → `Logging` → `CORS`.
+- Global middleware, outermost first: `RequestID` → `Metrics` (when set) → `Recover` →
+  `Logging` → `CORS`. `Metrics` sits outside `Recover` so recovered panics count as 500.
   `chain()` wraps in reverse, so the first in the list is outermost.
 - Routes (Go 1.22 `ServeMux` patterns): `GET /product`, `GET /product/{id}`,
-  `POST /order` (wrapped in `APIKeyAuth`), `GET /healthz`, `GET /readyz`.
+  `POST /order` (wrapped in `APIKeyAuth`), `GET /healthz`, `GET /readyz`, and
+  `GET /metrics` when `RouterDeps.MetricsHandler` is set.
 - Wrong method on a known path → 405 from `ServeMux` (plain text, not the JSON
   envelope). Unknown path → 404.
 

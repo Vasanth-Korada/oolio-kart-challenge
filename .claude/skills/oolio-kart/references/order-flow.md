@@ -55,6 +55,13 @@ wrapped with context (`fmt.Errorf("%w: product %s", ...)`), add it to the 422
 list in `httpapi/order_handler.go`, then add service and handler suite cases, a
 Postman request, and a README line.
 
+## Metrics
+
+`PlaceOrder` wraps `placeOrder` and reports to `order.Recorder`: `OrderPlaced`
+on success, `OrderRejected(reason)` for each validation sentinel (via
+`rejectionReason`), and `CouponChecked` whenever a code is looked up. A new
+sentinel needs a reason label there too.
+
 ## Logging
 
 The service logs with its own `s.logger`, which is not request-scoped, so

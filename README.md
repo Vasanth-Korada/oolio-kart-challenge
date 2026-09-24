@@ -16,10 +16,11 @@ Go backend for Oolio's food-ordering OpenAPI 3.1 spec, with coupon validation ov
 4. [API](#api)
 5. [Architecture](#architecture)
 6. [Coupon Validation](#coupon-validation)
-7. [Design Decisions](#design-decisions)
-8. [Known Limitations](#known-limitations)
-9. [Testing](#testing)
-10. [Contributing](#contributing)
+7. [Observability](#observability)
+8. [Design Decisions](#design-decisions)
+9. [Known Limitations](#known-limitations)
+10. [Testing](#testing)
+11. [Contributing](#contributing)
 
 ---
 
@@ -34,6 +35,7 @@ Go backend for Oolio's food-ordering OpenAPI 3.1 spec, with coupon validation ov
 - **Postgres persistence:** versioned migrations, one transaction per order
 - **Structured logging:** JSON logs with a request id
 - **Health checks:** `/healthz` (liveness), `/readyz` (readiness + storage mode)
+- **Metrics:** Prometheus `/metrics` (HTTP, orders, coupons, Go runtime) with a Grafana dashboard
 - **Docker:** one command, distroless runtime image
 - **CI on every push:** gofmt, vet, golangci-lint, build, race-enabled tests
 - **Postman collection:** 15 requests, each with assertions
@@ -59,7 +61,10 @@ make docker-up          # Postgres + API on :8080
 | `make postman-test` | Postman collection via newman |
 | `make fetch-coupons` | Download the 3 source files (~2.1 GB, resumable) |
 | `make build-coupon-index` | Rebuild `coupons.idx` from the source files (~5 min) |
-| `make docker-down` | Stop containers and drop the volume |
+| `make observability-local` | API + local Prometheus (`:9090`) + Grafana (`:3000`) with the dashboard |
+| `make observability-cloud` | API + Grafana Alloy pushing metrics to Grafana Cloud (needs `deploy/.env`) |
+| `make traffic` | 2 minutes of mixed traffic, incl. every error path |
+| `make docker-down` | Stop all containers and drop the volume |
 
 ---
 
@@ -74,7 +79,7 @@ make docker-up          # Postgres + API on :8080
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `CORS_ALLOWED_ORIGIN` | `*` | Allowed browser origin for the web frontend |
 
-Docker Compose credentials are overridable via `deploy/.env.example`.
+Docker Compose credentials are overridable via `deploy/.env.example`, which also lists the Grafana Cloud variables (`GRAFANA_CLOUD_PROM_URL`, `GRAFANA_CLOUD_PROM_USER`, `GRAFANA_CLOUD_API_TOKEN`).
 
 ---
 
@@ -89,6 +94,7 @@ Spec: [`api/openapi.yaml`](api/openapi.yaml)
 | `POST` | `/order` | `api_key` | `200` order | `400` bad JSON, `401` no key, `403` wrong key, `422` validation |
 | `GET` | `/healthz` | none | `200` | |
 | `GET` | `/readyz` | none | `200` + storage mode | `503` database down |
+| `GET` | `/metrics` | none | `200` Prometheus text format | |
 
 **Example: `POST /order`** (real response, second product trimmed)
 
@@ -155,9 +161,10 @@ internal/httpapi   handlers, middleware, error envelope
 internal/product   model, service, repositories (Postgres + in-memory)
 internal/order     model, service (validation, pricing, coupon), repositories
 internal/coupon    Validator, Source, build pipeline, index file format
-internal/platform  Postgres pool + migrations, logging, UUIDs
+internal/platform  Postgres pool + migrations, logging, metrics, UUIDs
 migrations/        SQL schema + seed data
 docs/diagrams/     diagrams (PNG + editable .drawio)
+deploy/            Dockerfile, Compose, Alloy, Prometheus, Grafana dashboard
 ```
 
 ---
@@ -219,6 +226,42 @@ docs/diagrams/     diagrams (PNG + editable .drawio)
 
 ---
 
+## Observability
+
+```
+Go API /metrics → Grafana Alloy (scrape every 15s) → Grafana Cloud Prometheus → Grafana dashboard
+```
+
+![Grafana dashboard](docs/images/grafana-dashboard.png)
+
+**Metrics** (all prefixed `oolio_`)
+
+| Metric | Type | Labels |
+| --- | --- | --- |
+| `http_requests_total` | counter | `method`, `route`, `status` |
+| `http_request_duration_seconds` | histogram | `method`, `route` |
+| `http_requests_in_flight` | gauge | |
+| `orders_placed_total` | counter | `coupon` |
+| `orders_rejected_total` | counter | `reason` |
+| `orders_total_amount` | histogram (dollars) | |
+| `coupon_checks_total` | counter | `result` |
+| `coupon_index_codes` | gauge | |
+| `storage_info` | gauge | `mode` |
+
+Plus the standard `go_*` and `process_*` metrics.
+
+- **Route labels are patterns** (`GET /product/{id}`), never raw paths, so series stay bounded
+- **Interface-first:** `order.Recorder` and `httpapi.HTTPMetrics`; only `internal/platform/metrics` imports Prometheus
+- **Private registry:** each `metrics.New()` is independent, so tests don't share state
+
+**Run it**
+
+- **Locally:** `make observability-local`, then `make traffic`, then open `localhost:3000`
+- **Grafana Cloud:** copy `deploy/.env.example` to `deploy/.env`, fill the three `GRAFANA_CLOUD_*` values (stack → Connections → Hosted Prometheus metrics; token scope `metrics:write`), then `make observability-cloud`
+- **Dashboard in Grafana Cloud:** Dashboards → New → Import → upload `deploy/grafana/dashboards/oolio-kart.json` → pick your Prometheus data source
+
+---
+
 ## Design Decisions
 
 | Decision | Why |
@@ -233,6 +276,7 @@ docs/diagrams/     diagrams (PNG + editable .drawio)
 | Sentinel errors + `errors.Is` | Status codes mapped by identity, not string matching |
 | 422 for validation, 400 for bad JSON | Separates "can't parse" from "business rule failed" |
 | In-memory fallback | Reviewer convenience; production should fail fast |
+| Prometheus pull model + Alloy | Standard Go client; Alloy forwards to Grafana Cloud with no app changes |
 | Coupon index committed | Tiny and deterministic; the image never needs 2.1 GB |
 
 ---
@@ -252,6 +296,7 @@ Found in self-review; planned next.
 | A panic skips the access log line | Move `Logging` outside `Recover` |
 | No request body size limit | `http.MaxBytesReader` |
 | Migrations have no lock across replicas | `pg_advisory_lock` |
+| `/metrics` is public on the API port | Separate internal port or network policy |
 
 ---
 
