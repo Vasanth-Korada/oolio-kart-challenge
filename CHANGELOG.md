@@ -4,6 +4,12 @@ All notable changes to this project are documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: [Semantic Versioning](https://semver.org/)
 
+## [Unreleased]
+
+### Added
+
+- GoDoc comments on every package and exported identifier
+
 ## [1.1.0] - 2026-09-24
 
 Branch `submission-v2`. Minor release: the HTTP API and CLI are unchanged; the coupon index format is internal to the repo.

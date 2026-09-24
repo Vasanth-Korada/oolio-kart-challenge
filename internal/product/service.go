@@ -10,10 +10,12 @@ type service struct {
 	logger *slog.Logger
 }
 
+// NewService returns a Service that reads from repo.
 func NewService(repo Repository, logger *slog.Logger) Service {
 	return &service{repo: repo, logger: logger}
 }
 
+// List returns every product.
 func (s *service) List(ctx context.Context) ([]Product, error) {
 	products, err := s.repo.List(ctx)
 	if err != nil {
@@ -23,6 +25,7 @@ func (s *service) List(ctx context.Context) ([]Product, error) {
 	return products, nil
 }
 
+// Get returns the product with the given id, or ErrNotFound.
 func (s *service) Get(ctx context.Context, id string) (Product, error) {
 	p, err := s.repo.GetByID(ctx, id)
 	if err != nil {

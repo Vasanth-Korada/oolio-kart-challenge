@@ -8,10 +8,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// DBRepository reads products from Postgres.
 type DBRepository struct {
 	pool *pgxpool.Pool
 }
 
+// NewDBRepository returns a DBRepository backed by pool.
 func NewDBRepository(pool *pgxpool.Pool) *DBRepository {
 	return &DBRepository{pool: pool}
 }
@@ -24,6 +26,7 @@ func scanProduct(row pgx.Row, p *Product) error {
 		&p.Image.Thumbnail, &p.Image.Mobile, &p.Image.Tablet, &p.Image.Desktop)
 }
 
+// List returns every product, ordered by numeric id.
 func (r *DBRepository) List(ctx context.Context) ([]Product, error) {
 	rows, err := r.pool.Query(ctx, `SELECT `+productColumns+` FROM products ORDER BY id::int`)
 	if err != nil {
@@ -42,6 +45,7 @@ func (r *DBRepository) List(ctx context.Context) ([]Product, error) {
 	return products, rows.Err()
 }
 
+// GetByID returns the product with id, or ErrNotFound.
 func (r *DBRepository) GetByID(ctx context.Context, id string) (Product, error) {
 	var p Product
 	row := r.pool.QueryRow(ctx, `SELECT `+productColumns+` FROM products WHERE id = $1`, id)

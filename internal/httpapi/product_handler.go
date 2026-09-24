@@ -8,6 +8,7 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/product"
 )
 
+// ProductHandler serves GET /product and GET /product/{id}.
 type ProductHandler struct {
 	Service product.Service
 }
@@ -42,6 +43,7 @@ func toProductResponse(p product.Product) productResponse {
 	}
 }
 
+// List serves GET /product: every product in the catalog.
 func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	products, err := h.Service.List(r.Context())
 	if err != nil {
@@ -57,6 +59,8 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, resp)
 }
 
+// Get serves GET /product/{id}. The id must be an integer (400 otherwise) and
+// is normalised, so "01" finds product "1".
 func (h *ProductHandler) Get(w http.ResponseWriter, r *http.Request) {
 	idParam := r.PathValue("id")
 	parsedID, err := strconv.ParseInt(idParam, 10, 64)

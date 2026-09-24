@@ -12,6 +12,8 @@ const (
 	loggerKey
 )
 
+// RequestIDFromContext returns the id set by the RequestID middleware, or ""
+// if there is none.
 func RequestIDFromContext(ctx context.Context) string {
 	id, _ := ctx.Value(requestIDKey).(string)
 	return id

@@ -31,8 +31,10 @@ type GzipFileSource struct {
 
 var _ Source = GzipFileSource{}
 
+// Name returns the file path, used in logs.
 func (s GzipFileSource) Name() string { return s.Path }
 
+// Scan implements Source for a gzip-compressed file with one code per line.
 func (s GzipFileSource) Scan(onCode func(code string)) (int64, error) {
 	f, err := os.Open(s.Path) //nolint:gosec // path is an operator-supplied CLI flag (cmd/buildindex), not user input
 	if err != nil {

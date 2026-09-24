@@ -8,6 +8,7 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/order"
 )
 
+// OrderHandler serves POST /order.
 type OrderHandler struct {
 	Service order.Service
 }
@@ -57,7 +58,8 @@ func toOrderResponse(o order.Order) orderResponse {
 	}
 }
 
-// Validation failures map to 422; a malformed body is the only 400.
+// Create serves POST /order. Validation failures map to 422; a malformed
+// body is the only 400.
 func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req placeOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

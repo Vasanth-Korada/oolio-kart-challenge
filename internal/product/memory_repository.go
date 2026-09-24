@@ -2,11 +2,14 @@ package product
 
 import "context"
 
+// MemoryRepository serves a fixed product list from memory. It is read-only,
+// so it is safe for concurrent use.
 type MemoryRepository struct {
 	products []Product
 	byID     map[string]Product
 }
 
+// NewMemoryRepository returns a MemoryRepository holding seed.
 func NewMemoryRepository(seed []Product) *MemoryRepository {
 	byID := make(map[string]Product, len(seed))
 	for _, p := range seed {
@@ -15,12 +18,14 @@ func NewMemoryRepository(seed []Product) *MemoryRepository {
 	return &MemoryRepository{products: seed, byID: byID}
 }
 
+// List returns a copy of every product, so callers can't modify the store.
 func (r *MemoryRepository) List(_ context.Context) ([]Product, error) {
 	out := make([]Product, len(r.products))
 	copy(out, r.products)
 	return out, nil
 }
 
+// GetByID returns the product with id, or ErrNotFound.
 func (r *MemoryRepository) GetByID(_ context.Context, id string) (Product, error) {
 	p, ok := r.byID[id]
 	if !ok {
@@ -31,6 +36,8 @@ func (r *MemoryRepository) GetByID(_ context.Context, id string) (Product, error
 
 var _ Repository = (*MemoryRepository)(nil)
 
+// SeedProducts returns the catalog that migrations/0001 seeds into Postgres,
+// for the in-memory store and tests.
 func SeedProducts() []Product {
 	products := []Product{
 		{ID: "1", Name: "Waffle with Berries", Price: 6.50, Category: "Waffle"},

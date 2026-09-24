@@ -1,3 +1,4 @@
+// Package idgen generates identifiers.
 package idgen
 
 import (
@@ -5,6 +6,8 @@ import (
 	"fmt"
 )
 
+// NewUUID returns a random (version 4) UUID from crypto/rand. It panics if
+// the system's random source fails.
 func NewUUID() string {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {

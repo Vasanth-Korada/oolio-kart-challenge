@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// RouterDeps holds everything NewRouter wires together.
 type RouterDeps struct {
 	Product    *ProductHandler
 	Order      *OrderHandler
@@ -14,6 +15,9 @@ type RouterDeps struct {
 	CORSOrigin string // "" disables CORS headers entirely
 }
 
+// NewRouter registers all routes and wraps them in the global middleware,
+// outermost first: RequestID, Recover, Logging, then CORS when enabled.
+// APIKeyAuth guards POST /order only.
 func NewRouter(deps RouterDeps) http.Handler {
 	mux := http.NewServeMux()
 

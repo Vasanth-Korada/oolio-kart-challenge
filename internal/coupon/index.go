@@ -10,6 +10,8 @@ type Index struct {
 
 var _ Validator = (*Index)(nil)
 
+// IsValid reports whether code is in the index. It does no I/O: a length
+// check, then a binary search over the sorted keys.
 func (idx *Index) IsValid(code string) bool {
 	if !ValidLength(code) {
 		return false
@@ -21,4 +23,5 @@ func (idx *Index) IsValid(code string) bool {
 	return i < len(idx.keys) && idx.keys[i] == k
 }
 
+// Len returns the number of valid codes in the index.
 func (idx *Index) Len() int { return len(idx.keys) }

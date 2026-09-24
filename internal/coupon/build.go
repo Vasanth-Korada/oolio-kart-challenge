@@ -14,6 +14,7 @@ import (
 // A code is valid when it appears in at least this many sources.
 const requiredFileCount = 2
 
+// Stats reports what a build read and wrote, for logging.
 type Stats struct {
 	PerFileLines      []int64
 	PerFileCandidates []int

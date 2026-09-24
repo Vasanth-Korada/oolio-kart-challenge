@@ -1,3 +1,6 @@
+// Command server runs the food-ordering HTTP API. It loads config, connects to
+// Postgres (falling back to in-memory storage), runs migrations, loads the
+// coupon index and serves until SIGINT or SIGTERM.
 package main
 
 import (
@@ -136,4 +139,5 @@ func loadCouponValidator(path string, logger *slog.Logger) (coupon.Validator, er
 // no external dependency left to be unready for.
 type noopPinger struct{}
 
+// Ping always succeeds: the in-memory store has no dependency to lose.
 func (noopPinger) Ping(context.Context) error { return nil }

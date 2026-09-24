@@ -9,6 +9,7 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/idgen"
 )
 
+// Middleware wraps an http.Handler with extra behaviour.
 type Middleware func(http.Handler) http.Handler
 
 func chain(h http.Handler, mws ...Middleware) http.Handler {
@@ -23,11 +24,14 @@ type statusRecorder struct {
 	status int
 }
 
+// WriteHeader records the status code for the access log.
 func (r *statusRecorder) WriteHeader(code int) {
 	r.status = code
 	r.ResponseWriter.WriteHeader(code)
 }
 
+// RequestID reuses the client's X-Request-Id or generates a UUID, echoes it
+// in the response, and stores it in the request context.
 func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("X-Request-Id")
@@ -39,6 +43,8 @@ func RequestID(next http.Handler) http.Handler {
 	})
 }
 
+// Logging writes one JSON access log line per request (method, path, status,
+// duration) and puts a request-scoped logger in the context.
 func Logging(base *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -60,6 +66,8 @@ func Logging(base *slog.Logger) Middleware {
 	}
 }
 
+// Recover turns a panic in a handler into a 500 response and an error log,
+// instead of dropping the connection.
 func Recover(base *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -76,6 +84,8 @@ func Recover(base *slog.Logger) Middleware {
 	}
 }
 
+// CORS sets the CORS headers for allowedOrigin ("*" allows any origin) and
+// answers preflight OPTIONS requests with 204.
 func CORS(allowedOrigin string) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -99,6 +109,8 @@ func CORS(allowedOrigin string) Middleware {
 	}
 }
 
+// APIKeyAuth requires the api_key header to equal expected: 401 if missing,
+// 403 if wrong. The comparison runs in constant time.
 func APIKeyAuth(expected string) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

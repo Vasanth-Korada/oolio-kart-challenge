@@ -7,14 +7,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// DBRepository stores orders in Postgres.
 type DBRepository struct {
 	pool *pgxpool.Pool
 }
 
+// NewDBRepository returns a DBRepository backed by pool.
 func NewDBRepository(pool *pgxpool.Pool) *DBRepository {
 	return &DBRepository{pool: pool}
 }
 
+// Create inserts the order and its items in one transaction, storing each
+// item's unit price as it was at order time.
 func (r *DBRepository) Create(ctx context.Context, o Order) (Order, error) {
 	err := pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
 		var couponCode *string

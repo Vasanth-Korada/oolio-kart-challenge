@@ -19,10 +19,15 @@ type service struct {
 	logger   *slog.Logger
 }
 
+// NewService returns a Service that prices items with products, checks
+// coupons with coupons, and stores orders in repo.
 func NewService(products product.Service, coupons coupon.Validator, repo Repository, logger *slog.Logger) Service {
 	return &service{products: products, coupons: coupons, repo: repo, logger: logger}
 }
 
+// PlaceOrder validates, merges and prices the request, applies the coupon
+// discount, and stores the order. Invalid input returns one of the package's
+// Err values.
 func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order, error) {
 	if len(req.Items) == 0 {
 		return Order{}, ErrEmptyItems
