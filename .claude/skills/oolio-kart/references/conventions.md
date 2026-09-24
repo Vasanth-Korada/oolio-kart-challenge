@@ -61,6 +61,10 @@
   `discounts` field were both documented wrongly once).
 - Diagrams are PNG exports of `docs/diagrams/*.drawio`; the detailed LLD and dry
   run pages sit in `<details>` blocks.
+- Diagram style (owner's request): easy to understand at a glance. A box is a
+  bold name plus at most one short line; decisions are short questions; errors
+  are red boxes with the status and a few words; no code blocks; at most one
+  small note per page; aim for about 150 words per page or fewer.
 
 ## CHANGELOG and versions
 

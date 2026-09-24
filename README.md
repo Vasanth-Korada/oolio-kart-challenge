@@ -241,7 +241,7 @@ curl -X POST localhost:8080/order -H "Authorization: Bearer $TOKEN" \
 </details>
 
 <details>
-<summary><b>Order flow: dry run</b> (a real request traced through every layer)</summary>
+<summary><b>Order flow: dry run</b> (a real request, step by step)</summary>
 
 ![Order placement: dry run](docs/diagrams/order-dry-run.png)
 </details>
@@ -301,7 +301,7 @@ deploy/            Dockerfile, Compose, Alloy, Prometheus, Grafana dashboard
 </details>
 
 <details>
-<summary><b>Coupon build: dry run</b> (13 lines through every stage, byte-exact)</summary>
+<summary><b>Coupon build: dry run</b> (13 lines to a 41-byte index)</summary>
 
 ![Coupon build: dry run](docs/diagrams/coupon-dry-run.png)
 </details>

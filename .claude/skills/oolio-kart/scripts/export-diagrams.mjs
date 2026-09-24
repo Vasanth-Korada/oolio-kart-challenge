@@ -39,8 +39,17 @@ try {
     const w = Number(whole.match(/pageWidth="(\d+)"/)?.[1] ?? 1600) + 100;
     const h = Number(whole.match(/pageHeight="(\d+)"/)?.[1] ?? 1200) + 100;
     const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
-    await page.goto(viewerURL(whole));
-    await page.waitForSelector('foreignObject', { timeout: 30000 });
+    // The public viewer occasionally stalls; one retry is usually enough.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await page.goto(viewerURL(whole));
+        await page.waitForSelector('foreignObject', { timeout: 30000 });
+        break;
+      } catch (err) {
+        if (attempt >= 2) throw err;
+        console.error(`retrying "${name}" after: ${err.message.split('\n')[0]}`);
+      }
+    }
     await page.waitForTimeout(2500);
     const box = await page.evaluate(() => {
       const svg = [...document.querySelectorAll('svg')].find((s) => s.querySelector('foreignObject'));

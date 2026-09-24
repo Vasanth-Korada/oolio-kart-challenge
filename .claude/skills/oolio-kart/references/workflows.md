@@ -50,28 +50,26 @@ lint running alongside can make it 3× slower.
 
 ## Diagrams
 
-- Sources: `docs/diagrams/order.drawio`, `coupon.drawio`, `auth.drawio` (one page
-  per view). Copies live in `/Users/vasanth/Desktop/oolio/diagrams`
-  (`order-placement.drawio`, `coupon-buildindex.drawio`, `auth-jwt.drawio`); keep them in sync.
-  Edit in app.diagrams.net or the VS Code draw.io extension.
-- Export every page to cropped PNGs for the README:
+- Diagrams are generated, not hand-drawn. Edit
+  `.claude/skills/oolio-kart/scripts/diagrams/generate.py`, then run:
 
   ```bash
-  node .claude/skills/oolio-kart/scripts/export-diagrams.mjs docs/diagrams/order.drawio docs/diagrams/order
+  NODE_PATH=<dir with playwright>/node_modules .claude/skills/oolio-kart/scripts/diagrams/build.sh
   ```
 
-  Writes `<prefix>-<page-slug>.png` per page (2x, cropped). Needs Playwright
-  (`npm i playwright` in a scratch dir, `NODE_PATH` pointing at it) and network
-  access to viewer.diagrams.net. Rename or map outputs to the file names the
-  README uses (`order-hld.png`, `order-lld.png`, `order-dry-run.png`,
-  `coupon-hld.png`, `coupon-package-map.png`, `coupon-lld.png`,
-  `coupon-dry-run.png`, `auth-hld.png`, `auth-lld.png`, `auth-dry-run.png`).
-- Playwright must match the browsers in `~/Library/Caches/ms-playwright`
-  (`npm i playwright@latest` worked; a pinned older version wanted a missing build).
-- To patch an existing page without reformatting it, replace only the `value`
-  attribute of the target `mxCell` ids (escape `& < > "`), then re-export.
+  It rewrites `docs/diagrams/{order,coupon,auth}.drawio` and the ten README PNGs
+  (`order-hld`, `order-lld`, `order-dry-run`, `coupon-hld`, `coupon-package-map`,
+  `coupon-lld`, `coupon-dry-run`, `auth-hld`, `auth-lld`, `auth-dry-run`). Hand
+  edits to the `.drawio` files are overwritten on the next run.
+- Needs Playwright matching the browsers in `~/Library/Caches/ms-playwright`
+  (`npm i playwright@latest` in a scratch dir) and network access to
+  viewer.diagrams.net; the export retries once if the viewer stalls.
+- Copies live in `/Users/vasanth/Desktop/oolio/diagrams` (`order-placement.drawio`,
+  `coupon-buildindex.drawio`, `auth-jwt.drawio`); copy the new files there too.
 - Dry-run pages show captured values. If behaviour changes, re-capture on the
-  real stack rather than editing numbers by hand.
+  real stack and update the numbers in `generate.py`.
+- Always look at every exported PNG before committing: overlapping arrows and
+  labels are the usual problem, fixed with `exitX/exitY/entryX/entryY` in `E(...)`.
 
 ## Release
 
