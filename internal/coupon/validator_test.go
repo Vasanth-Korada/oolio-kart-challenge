@@ -3,10 +3,20 @@ package coupon_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/suite"
+
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/coupon"
 )
 
-func TestValidLength(t *testing.T) {
+type ValidatorSuite struct {
+	suite.Suite
+}
+
+func TestValidatorSuite(t *testing.T) {
+	suite.Run(t, new(ValidatorSuite))
+}
+
+func (s *ValidatorSuite) TestValidLength() {
 	tests := []struct {
 		name string
 		code string
@@ -19,21 +29,17 @@ func TestValidLength(t *testing.T) {
 		{name: "empty", code: "", want: false},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := coupon.ValidLength(tt.code); got != tt.want {
-				t.Errorf("ValidLength(%q) = %v, want %v", tt.code, got, tt.want)
-			}
+		s.Run(tt.name, func() {
+			s.Equal(tt.want, coupon.ValidLength(tt.code))
 		})
 	}
 }
 
-func TestUnavailableValidator(t *testing.T) {
+func (s *ValidatorSuite) TestUnavailableValidatorRejectsEverything() {
 	v := coupon.NewUnavailableValidator()
 	for _, code := range []string{"HAPPYHRS", "FIFTYOFF", "ANYCODE1"} {
-		t.Run(code, func(t *testing.T) {
-			if v.IsValid(code) {
-				t.Errorf("IsValid(%q) = true, want false", code)
-			}
+		s.Run(code, func() {
+			s.False(v.IsValid(code))
 		})
 	}
 }

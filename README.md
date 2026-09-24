@@ -99,7 +99,7 @@ cmd/buildindex     - offline tool: raw coupon files -> coupons.idx
 internal/httpapi   - stdlib net/http handlers, middleware, error envelope
 internal/product   - model, Service, Repository (Postgres + in-memory)
 internal/order     - model, Service (validation, pricing, coupon check), Repository
-internal/coupon    - Validator + the index build/query logic
+internal/coupon    - Validator + Index (lookup), Source (gzip input), build pipeline, index file format
 internal/platform  - postgres pool/migrations, structured logging, id generation
 migrations/        - SQL schema + product seed data
 ```
@@ -251,7 +251,7 @@ Not part of the OpenAPI spec, standard production hygiene:
 
 ## Testing
 
-One test file per layer, table-driven with `t.Run` sub-tests:
+One test file per layer, table-driven with `t.Run` sub-tests (the coupon package uses `testify/suite`):
 
 | Layer | Where | Covers |
 | --- | --- | --- |
@@ -259,7 +259,7 @@ One test file per layer, table-driven with `t.Run` sub-tests:
 | Service | `service_test.go` | Validation, pricing, coupon checks, persistence, with fakes |
 | Handler | `*_handler_test.go` | Status codes and error mapping, with a fake service |
 | Contract | `contract_test.go` | Every request/response validated against `api/openapi.yaml` via [kin-openapi](https://github.com/getkin/kin-openapi) |
-| Coupon | `internal/coupon/*_test.go` | Length boundaries, a synthetic fixture, the real files' documented examples |
+| Coupon | `internal/coupon/*_test.go` | Length boundaries, the build against in-memory `Source` fakes (overlap, repeats, partial and failing sources), gzip input incl. truncated files, index file validation, the real files' documented examples |
 
 ```bash
 make test              # everything except Postgres integration tests
