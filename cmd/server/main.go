@@ -18,6 +18,7 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/httpapi"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/order"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/logging"
+	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/metrics"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/postgres"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/product"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/migrations"
@@ -34,6 +35,8 @@ func run() error {
 	cfg := config.Load()
 	logger := logging.New(cfg.LogLevel)
 	slog.SetDefault(logger)
+
+	met := metrics.New()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -69,13 +72,16 @@ func run() error {
 		storage = "postgres"
 	}
 
-	couponValidator, err := loadCouponValidator(cfg.CouponIndexPath, logger)
+	met.SetStorage(storage)
+
+	couponValidator, codes, err := loadCouponValidator(cfg.CouponIndexPath, logger)
 	if err != nil {
 		return err
 	}
+	met.SetCouponIndexCodes(codes)
 
 	productService := product.NewService(productRepo, logger)
-	orderService := order.NewService(productService, couponValidator, orderRepo, logger)
+	orderService := order.NewService(productService, couponValidator, orderRepo, met, logger)
 
 	router := httpapi.NewRouter(httpapi.RouterDeps{
 		Product:    &httpapi.ProductHandler{Service: productService},
@@ -84,6 +90,9 @@ func run() error {
 		Logger:     logger,
 		APIKey:     cfg.APIKey,
 		CORSOrigin: cfg.CORSOrigin,
+
+		Metrics:        met,
+		MetricsHandler: met.Handler(),
 	})
 
 	srv := &http.Server{
@@ -121,18 +130,20 @@ func run() error {
 	return nil
 }
 
-func loadCouponValidator(path string, logger *slog.Logger) (coupon.Validator, error) {
+// loadCouponValidator also returns how many valid codes were loaded (0 for
+// the fail-closed fallback), for the coupon index metric.
+func loadCouponValidator(path string, logger *slog.Logger) (coupon.Validator, int, error) {
 	idx, err := coupon.LoadIndex(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			logger.Warn("coupon: index file not found, coupon codes will all be rejected until it's built",
 				slog.String("path", path))
-			return coupon.NewUnavailableValidator(), nil
+			return coupon.NewUnavailableValidator(), 0, nil
 		}
-		return nil, err
+		return nil, 0, err
 	}
 	logger.Info("coupon: index loaded", slog.String("path", path), slog.Int("valid_codes", idx.Len()))
-	return idx, nil
+	return idx, idx.Len(), nil
 }
 
 // noopPinger backs /readyz when running on the in-memory fallback: there's

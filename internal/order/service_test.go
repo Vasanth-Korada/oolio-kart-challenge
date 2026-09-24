@@ -2,6 +2,7 @@ package order_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"math"
@@ -29,7 +30,7 @@ func (s *ServiceSuite) newService(coupons fakeCoupons) (order.Service, *order.Me
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	products := product.NewService(product.NewMemoryRepository(product.SeedProducts()), logger)
 	repo := order.NewMemoryRepository()
-	return order.NewService(products, coupons, repo, logger), repo
+	return order.NewService(products, coupons, repo, nil, logger), repo
 }
 
 func (s *ServiceSuite) place(coupons fakeCoupons, couponCode string, items ...order.Item) (order.Order, error) {
@@ -138,4 +139,46 @@ func (s *ServiceSuite) TestIgnoresClientSuppliedPrice() {
 
 	s.Require().NoError(err)
 	s.Equal(product.SeedProducts()[0].Price, got.Products[0].Price, "price must come from the seeded catalog")
+}
+
+// fakeRecorder captures the events PlaceOrder reports, in order.
+type fakeRecorder struct{ events []string }
+
+func (f *fakeRecorder) OrderPlaced(withCoupon bool, total float64) {
+	f.events = append(f.events, fmt.Sprintf("placed coupon=%t total=%.2f", withCoupon, total))
+}
+func (f *fakeRecorder) OrderRejected(reason string) { f.events = append(f.events, "rejected "+reason) }
+func (f *fakeRecorder) CouponChecked(valid bool) {
+	f.events = append(f.events, fmt.Sprintf("coupon valid=%t", valid))
+}
+
+func (s *ServiceSuite) TestReportsEventsToRecorder() {
+	tests := []struct {
+		name       string
+		items      []order.Item
+		couponCode string
+		want       []string
+	}{
+		{name: "order with a valid coupon", items: []order.Item{item("1", 1), item("9", 1)}, couponCode: "HAPPYHRS",
+			want: []string{"coupon valid=true", "placed coupon=true total=9.50"}},
+		{name: "order without a coupon checks none", items: []order.Item{item("1", 1)},
+			want: []string{"placed coupon=false total=6.50"}},
+		{name: "invalid coupon", items: []order.Item{item("1", 1)}, couponCode: "BADCODE1",
+			want: []string{"coupon valid=false", "rejected invalid_coupon"}},
+		{name: "empty items", want: []string{"rejected empty_items"}},
+		{name: "quantity too large", items: []order.Item{item("1", 1001)}, want: []string{"rejected quantity_too_large"}},
+		{name: "unknown product", items: []order.Item{item("999", 1)}, want: []string{"rejected product_not_found"}},
+	}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			rec := &fakeRecorder{}
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			products := product.NewService(product.NewMemoryRepository(product.SeedProducts()), logger)
+			svc := order.NewService(products, fakeCoupons{"HAPPYHRS": true}, order.NewMemoryRepository(), rec, logger)
+
+			_, _ = svc.PlaceOrder(context.Background(), order.CreateOrderRequest{Items: tt.items, CouponCode: tt.couponCode})
+
+			s.Equal(tt.want, rec.events)
+		})
+	}
 }

@@ -56,6 +56,20 @@ type Repository interface {
 	Create(ctx context.Context, o Order) (Order, error)
 }
 
+// Recorder receives order and coupon events, for metrics. Implementations
+// must be safe for concurrent use.
+type Recorder interface {
+	OrderPlaced(withCoupon bool, total float64)
+	OrderRejected(reason string)
+	CouponChecked(valid bool)
+}
+
+type noopRecorder struct{}
+
+func (noopRecorder) OrderPlaced(bool, float64) {}
+func (noopRecorder) OrderRejected(string)      {}
+func (noopRecorder) CouponChecked(bool)        {}
+
 // Service is the order business logic, independent of HTTP and storage.
 type Service interface {
 	PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order, error)

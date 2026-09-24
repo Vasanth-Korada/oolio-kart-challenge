@@ -16,19 +16,57 @@ type service struct {
 	products product.Service
 	coupons  coupon.Validator
 	repo     Repository
+	rec      Recorder
 	logger   *slog.Logger
 }
 
 // NewService returns a Service that prices items with products, checks
-// coupons with coupons, and stores orders in repo.
-func NewService(products product.Service, coupons coupon.Validator, repo Repository, logger *slog.Logger) Service {
-	return &service{products: products, coupons: coupons, repo: repo, logger: logger}
+// coupons with coupons, stores orders in repo, and reports events to rec.
+// A nil rec records nothing.
+func NewService(products product.Service, coupons coupon.Validator, repo Repository, rec Recorder, logger *slog.Logger) Service {
+	if rec == nil {
+		rec = noopRecorder{}
+	}
+	return &service{products: products, coupons: coupons, repo: repo, rec: rec, logger: logger}
 }
 
 // PlaceOrder validates, merges and prices the request, applies the coupon
 // discount, and stores the order. Invalid input returns one of the package's
-// Err values.
+// Err values. Each outcome is reported to the Recorder.
 func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order, error) {
+	o, err := s.placeOrder(ctx, req)
+	if err != nil {
+		if reason, ok := rejectionReason(err); ok {
+			s.rec.OrderRejected(reason)
+		}
+		return Order{}, err
+	}
+	s.rec.OrderPlaced(o.CouponCode != "", o.Total)
+	return o, nil
+}
+
+// rejectionReason maps a validation error to a short metrics label; other
+// errors (storage failures) are not rejections.
+func rejectionReason(err error) (string, bool) {
+	reasons := []struct {
+		err    error
+		reason string
+	}{
+		{ErrEmptyItems, "empty_items"},
+		{ErrInvalidQuantity, "invalid_quantity"},
+		{ErrQuantityTooLarge, "quantity_too_large"},
+		{ErrProductNotFound, "product_not_found"},
+		{ErrInvalidCoupon, "invalid_coupon"},
+	}
+	for _, r := range reasons {
+		if errors.Is(err, r.err) {
+			return r.reason, true
+		}
+	}
+	return "", false
+}
+
+func (s *service) placeOrder(ctx context.Context, req CreateOrderRequest) (Order, error) {
 	if len(req.Items) == 0 {
 		return Order{}, ErrEmptyItems
 	}
@@ -68,7 +106,11 @@ func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order
 		subtotal += p.Price * float64(item.Quantity)
 	}
 
-	if req.CouponCode != "" && !s.coupons.IsValid(req.CouponCode) {
+	valid := req.CouponCode == "" || s.coupons.IsValid(req.CouponCode)
+	if req.CouponCode != "" {
+		s.rec.CouponChecked(valid)
+	}
+	if !valid {
 		s.logger.WarnContext(ctx, "order: rejected invalid coupon", slog.String("coupon_code", req.CouponCode))
 		return Order{}, ErrInvalidCoupon
 	}

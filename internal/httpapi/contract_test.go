@@ -41,7 +41,7 @@ func newTestRouter(t *testing.T) http.Handler {
 
 	orderRepo := order.NewMemoryRepository()
 	couponValidator := fakeCouponValidator{valid: map[string]bool{"HAPPYHRS": true}}
-	orderService := order.NewService(productService, couponValidator, orderRepo, logger)
+	orderService := order.NewService(productService, couponValidator, orderRepo, nil, logger)
 
 	return httpapi.NewRouter(httpapi.RouterDeps{
 		Product: &httpapi.ProductHandler{Service: productService},
