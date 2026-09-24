@@ -26,14 +26,16 @@ Subtlety worth knowing: `Logging` sits inside `Recover`, so a panic unwinds past
 
 ## Startup (`cmd/server`)
 
-1. `config.Load()` from env; JSON logger via `platform/logging`.
+1. `config.Load()` from env; JSON logger via `platform/logging`; `metrics.New()`.
 2. `postgres.Connect` (pool + ping). On failure: warn and fall back to in-memory
    repositories (reviewer convenience only; production should fail fast).
-   `/readyz` reports `"storage": "postgres"` or `"in-memory (fallback)"`.
+   `/readyz` reports `"storage": "postgres"` or `"in-memory (fallback)"`; the
+   same value goes to the `oolio_storage_info` metric.
 3. `postgres.Migrate` applies embedded `migrations/*.sql` in name order, each in
    its own transaction, recorded in `schema_migrations`.
 4. `coupon.LoadIndex(COUPON_INDEX_PATH)`: missing file → `NewUnavailableValidator`
    (rejects all coupons, fail closed); corrupt or wrong format → server exits.
+   The loaded code count goes to `oolio_coupon_index_codes` (0 for the fallback).
 5. `http.Server` timeouts: ReadHeader 5s, Read 10s, Write 10s, Idle 60s.
    SIGINT/SIGTERM → `Shutdown` with a 10s deadline.
 
@@ -47,6 +49,9 @@ Subtlety worth knowing: `Logging` sits inside `Recover`, so a panic unwinds past
 | `COUPON_INDEX_PATH` | `coupons/coupons.idx` |
 | `LOG_LEVEL` | `info` |
 | `CORS_ALLOWED_ORIGIN` | `*` |
+
+The `GRAFANA_CLOUD_*` variables in `deploy/.env` are read by Alloy in Compose,
+not by the Go server.
 
 `getEnv` treats an empty value as unset, so `CORS_ALLOWED_ORIGIN=""` does not
 disable CORS (it becomes `*`). Don't document otherwise.

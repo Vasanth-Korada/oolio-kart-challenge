@@ -17,6 +17,11 @@
   `--force-with-lease=submission-v2:<expected-sha>`.
 - Check `git status` before starting: the owner sometimes commits or edits files
   themselves (e.g. `CLAUDE.md`). Never overwrite their uncommitted work.
+- The owner also runs `make docker-up` etc. in their own terminal. Before starting
+  Compose, check `ps` for another `docker compose` process on this project; two
+  of them block each other. Never kill theirs; ask them to stop it.
+- Scan new commits for secrets before pushing, e.g.
+  `git diff <base>..HEAD | grep -cE 'glc_[A-Za-z0-9]{10,}'` must print 0.
 
 ## Go code
 
@@ -30,7 +35,8 @@
 ## Tests
 
 - `testify/suite` for any test file you create or touch (converted so far:
-  `internal/coupon`, `order/service_test.go`, `httpapi/order_handler_test.go`).
+  `internal/coupon`, `internal/platform/metrics`, `order/service_test.go`,
+  `httpapi/order_handler_test.go`, `httpapi/metrics_test.go`).
   Other packages still use plain `t.Run` tables; convert them when touched.
 - Table-driven cases inside suite methods (`s.Run(tt.name, ...)`).
 - For a bug fix, show the new test fails without the fix (temporarily revert, run,

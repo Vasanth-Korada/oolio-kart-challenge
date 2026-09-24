@@ -1,6 +1,6 @@
 ---
 name: oolio-kart
-description: Project context and working rules for the oolio-kart-challenge Go backend (food-ordering API with a 313M-code coupon index). Use this skill for any work in this repo, even when it isn't named: adding a feature or endpoint, fixing a bug, touching the coupon index or the order flow, writing or converting tests, updating README, CHANGELOG or draw.io diagrams, committing, pushing, tagging or releasing, rebuilding coupons.idx, or answering "why was it built this way" questions about the design. It holds the branch policy, commit approval rule, conventions, known limitations and the gotchas already hit, so read it before changing anything.
+description: Project context and working rules for the oolio-kart-challenge Go backend (food-ordering API with a 313M-code coupon index). Use this skill for any work in this repo, even when it isn't named: adding a feature or endpoint, fixing a bug, touching the coupon index or the order flow, writing or converting tests, updating README, CHANGELOG or draw.io diagrams, adding or changing Prometheus metrics, the Grafana dashboard or the Alloy / Grafana Cloud setup, committing, pushing, tagging or releasing, rebuilding coupons.idx, or answering "why was it built this way" questions about the design. It holds the branch policy, commit approval rule, conventions, known limitations and the gotchas already hit, so read it before changing anything.
 ---
 
 # oolio-kart-challenge
@@ -29,6 +29,10 @@ cost (the submission is under review), so treat them as fixed.
    with `--force-with-lease`.
 5. **Verify before calling something done:** the full check script, and for
    behaviour changes a live run on Docker + Postgres (see workflows).
+6. **Never write, print or commit secrets.** Grafana Cloud credentials live in
+   `deploy/.env` (gitignored), filled in by the owner. Check a value is set with
+   `grep -q '^VAR=.'`, never by reading it. If a secret shows up in chat, don't
+   copy it anywhere and suggest rotating it.
 
 ## Where to look
 
@@ -75,3 +79,5 @@ build, race tests). CI also runs on every push to `submission-v2`; check it with
 - **docs/diagrams** when a drawn flow changes (regenerate PNGs with the export
   script).
 - **Postman collection** when an API behaviour or error path changes.
+- **Metrics and the dashboard** when you add behaviour worth watching (a new
+  endpoint, rejection reason or business event); see observability.

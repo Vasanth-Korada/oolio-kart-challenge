@@ -4,6 +4,8 @@
 Go API /metrics → Grafana Alloy (every 15s) → Grafana Cloud Prometheus → dashboard
 ```
 
+Added in v1.2.0.
+
 ## Code
 
 - `internal/platform/metrics`: the only package importing Prometheus. `metrics.New()`
@@ -45,12 +47,40 @@ JSON, a row in the README metrics table, and a suite test that scrapes it.
   `datasource` variable, so it imports into any Grafana. Import via Dashboards →
   New → Import.
 
+## Editing the dashboard
+
+- The repo JSON is the source of truth. Edits made in the Grafana Cloud UI don't
+  reach the repo: export (Share → Export → Save to file, with "Export for sharing
+  externally" off so the `datasource` variable stays) and replace
+  `deploy/grafana/dashboards/oolio-kart.json`, then re-import to update Cloud.
+- Local Grafana reloads the provisioned file from disk within about 10 seconds.
+- After any change, run every panel query against real data:
+
+  ```bash
+  python3 .claude/skills/oolio-kart/scripts/check-dashboard.py
+  ```
+
+  It fills in `$job`, `$__rate_interval` and `$__range` and queries the local
+  Prometheus (`localhost:9090` by default; pass another URL as the second
+  argument). Every query must return data after `make traffic`.
+
+## README screenshot
+
+`docs/images/grafana-dashboard.png`. Grafana only renders panels inside the
+viewport, so capture with a tall viewport (about 1600×3900) at
+`localhost:3000/d/oolio-kart-api/oolio-kart-api?kiosk&theme=light&from=now-10m`
+while `make traffic` is running (rates read 0 once traffic stops), then crop the
+empty space below the last row.
+
 ## Verify
 
 1. `make observability-local` (and/or `make observability-cloud`), wait for `/readyz`.
 2. `make traffic` (or `scripts/loadgen.sh <seconds>`).
 3. `curl -s localhost:8080/metrics | grep ^oolio_`; Prometheus targets at
    `localhost:9090/api/v1/targets` must be `up`.
-4. Alloy: `docker compose -f deploy/docker-compose.yml logs alloy` shows no remote
-   write errors; in Grafana Cloud Explore, `oolio_http_requests_total` has data.
+4. Alloy: `curl -s localhost:12345/metrics | grep prometheus_remote_storage_samples`
+   shows `samples_total` growing and `samples_failed_total` at 0. A single
+   "Skipping resharding" warning at startup is harmless. In Grafana Cloud Explore
+   (data source `grafanacloud-brownvalley96-prom`), `oolio_http_requests_total`
+   has data. Filter any Alloy log output through `sed` to mask `glc_` tokens.
 5. Stop everything with `make docker-down` (all profiles).
