@@ -17,15 +17,18 @@
    - `mergeItems`: same `productId` twice → one line, quantities summed, first-seen
      order kept (the `order_items` PK is `(order_id, product_id)`).
    - merged quantity > 1000 → `ErrQuantityTooLarge` (e.g. 600 + 600).
-   - for each merged item `products.Get` (one query per item: N+1) →
-     `product.ErrNotFound` becomes `ErrProductNotFound`; any other error → 500.
+   - one `products.GetMany(ids)` for the whole cart (`WHERE id = ANY($1)`);
+     every id missing from the map is reported in one `ErrProductNotFound`
+     (`products 999, 11`); any other error → 500.
    - `subtotal += price × qty` (prices from the catalog, never the client).
    - `couponCode != ""` and invalid → `ErrInvalidCoupon`.
    - `discount = roundMoney(subtotal × 0.05)` if a coupon was given;
      `total = roundMoney(subtotal − discount)`; id = `idgen.NewUUID()` (v4).
 5. `DBRepository.Create`: `pgx.BeginFunc` → insert `orders` (coupon NULL when
-   empty) → one insert per item with `unit_price` → commit, or rollback on any
-   error.
+   empty) → **one** `INSERT … SELECT … FROM unnest($2::text[], $3::int[],
+   $4::numeric[])` for all lines with `unit_price` → commit, or rollback on any
+   error. An order is 5 statements whatever the cart size; `PlaceOrderDBSuite`
+   counts them with a pgx tracer and fails if that grows.
 6. Handler maps errors with `errors.Is`: the five `Err*` sentinels → 422
    `validation_error`; anything else → logged + 500 `internal`. Success → 200.
 

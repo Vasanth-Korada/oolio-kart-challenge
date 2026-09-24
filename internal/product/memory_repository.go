@@ -34,6 +34,17 @@ func (r *MemoryRepository) GetByID(_ context.Context, id string) (Product, error
 	return p, nil
 }
 
+// GetByIDs returns the products with the given ids, keyed by id.
+func (r *MemoryRepository) GetByIDs(_ context.Context, ids []string) (map[string]Product, error) {
+	products := make(map[string]Product, len(ids))
+	for _, id := range ids {
+		if p, ok := r.byID[id]; ok {
+			products[id] = p
+		}
+	}
+	return products, nil
+}
+
 var _ Repository = (*MemoryRepository)(nil)
 
 // SeedProducts returns the catalog that migrations/0001 seeds into Postgres,

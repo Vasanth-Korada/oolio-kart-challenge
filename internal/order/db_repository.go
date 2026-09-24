@@ -38,16 +38,23 @@ func (r *DBRepository) Create(ctx context.Context, o Order) (Order, error) {
 			priceByProductID[p.ID] = p.Price
 		}
 
-		for _, item := range o.Items {
-			if _, err := tx.Exec(ctx,
-				`INSERT INTO order_items (order_id, product_id, quantity, unit_price)
-				 VALUES ($1, $2, $3, $4)`,
-				o.ID, item.ProductID, item.Quantity, priceByProductID[item.ProductID],
-			); err != nil {
-				return err
-			}
+		// All lines in one statement: unnest turns the three parallel arrays
+		// into rows, so the cost doesn't grow with the number of items.
+		ids := make([]string, len(o.Items))
+		quantities := make([]int32, len(o.Items))
+		prices := make([]float64, len(o.Items))
+		for i, item := range o.Items {
+			ids[i] = item.ProductID
+			quantities[i] = int32(item.Quantity) //nolint:gosec // bounded by order.MaxItemQuantity
+			prices[i] = priceByProductID[item.ProductID]
 		}
-		return nil
+		_, err := tx.Exec(ctx,
+			`INSERT INTO order_items (order_id, product_id, quantity, unit_price)
+			 SELECT $1::uuid, line.product_id, line.quantity, line.unit_price
+			 FROM unnest($2::text[], $3::int[], $4::numeric[]) AS line(product_id, quantity, unit_price)`,
+			o.ID, ids, quantities, prices,
+		)
+		return err
 	})
 	if err != nil {
 		return Order{}, err

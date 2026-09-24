@@ -374,6 +374,7 @@ Plus the standard `go_*` and `process_*` metrics.
 | Server-side pricing | Client prices are never trusted |
 | `unit_price` stored per line | Later price changes can't rewrite past orders |
 | One transaction per order | Never an order without its items |
+| Batched order queries | One `SELECT … ANY($1)` + one `unnest` insert: 5 statements for any cart size |
 | Quantity capped at 1000 per line | Totals stay inside the DB columns; bad input is `422`, not `500` |
 | Sentinel errors + `errors.Is` | Status codes mapped by identity, not string matching |
 | 422 for validation, 400 for bad JSON | Separates "can't parse" from "business rule failed" |
@@ -391,7 +392,6 @@ Found in self-review; planned next.
 | Limitation | Planned fix |
 | --- | --- |
 | Money is `float64` in Go (exact `NUMERIC` in Postgres) | `int64` cents |
-| One `SELECT` and one `INSERT` per order item | `WHERE id = ANY($1)` + `pgx.Batch` |
 | No `Idempotency-Key`: a retry creates a duplicate order | Idempotency key + unique constraint |
 | Flat 5% discount is hardcoded | `DiscountPolicy` interface per coupon |
 | Committed index holds valid codes in plain text | Build in CI from a private source |

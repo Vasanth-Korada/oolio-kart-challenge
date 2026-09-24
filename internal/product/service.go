@@ -25,6 +25,16 @@ func (s *service) List(ctx context.Context) ([]Product, error) {
 	return products, nil
 }
 
+// GetMany returns the products with the given ids, keyed by id.
+func (s *service) GetMany(ctx context.Context, ids []string) (map[string]Product, error) {
+	products, err := s.repo.GetByIDs(ctx, ids)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "product: get many failed", slog.Int("ids", len(ids)), slog.Any("error", err))
+		return nil, err
+	}
+	return products, nil
+}
+
 // Get returns the product with the given id, or ErrNotFound.
 func (s *service) Get(ctx context.Context, id string) (Product, error) {
 	p, err := s.repo.GetByID(ctx, id)

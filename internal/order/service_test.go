@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -132,6 +133,25 @@ func (s *ServiceSuite) TestMergesDuplicateProductIDs() {
 	persisted := repo.All()
 	s.Require().Len(persisted, 1)
 	s.Len(persisted[0].Items, 1)
+}
+
+func (s *ServiceSuite) TestReportsEveryUnknownProduct() {
+	tests := []struct {
+		name  string
+		items []order.Item
+		want  string
+	}{
+		{name: "one unknown", items: []order.Item{item("1", 1), item("999", 1)}, want: ": product 999"},
+		{name: "several unknown, in request order", items: []order.Item{item("999", 1), item("1", 1), item("11", 2)}, want: ": products 999, 11"},
+	}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			_, err := s.place(nil, "", tt.items...)
+
+			s.Require().ErrorIs(err, order.ErrProductNotFound)
+			s.True(strings.HasSuffix(err.Error(), tt.want), "error %q should end with %q", err, tt.want)
+		})
+	}
 }
 
 func (s *ServiceSuite) TestIgnoresClientSuppliedPrice() {

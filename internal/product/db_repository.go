@@ -59,4 +59,24 @@ func (r *DBRepository) GetByID(ctx context.Context, id string) (Product, error) 
 	return p, nil
 }
 
+// GetByIDs returns the products with the given ids in a single query
+// (WHERE id = ANY($1)), keyed by id.
+func (r *DBRepository) GetByIDs(ctx context.Context, ids []string) (map[string]Product, error) {
+	rows, err := r.pool.Query(ctx, `SELECT `+productColumns+` FROM products WHERE id = ANY($1)`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	products := make(map[string]Product, len(ids))
+	for rows.Next() {
+		var p Product
+		if err := scanProduct(rows, &p); err != nil {
+			return nil, err
+		}
+		products[p.ID] = p
+	}
+	return products, rows.Err()
+}
+
 var _ Repository = (*DBRepository)(nil)

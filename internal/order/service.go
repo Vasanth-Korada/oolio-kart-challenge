@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"strings"
 
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/coupon"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/idgen"
@@ -92,18 +93,26 @@ func (s *service) placeOrder(ctx context.Context, req CreateOrderRequest) (Order
 		}
 	}
 
-	resolved := make([]product.Product, 0, len(merged))
+	// One query for every product in the cart, instead of one per line: the
+	// cost stays flat as the cart grows, and all prices come from the same
+	// moment.
+	ids := make([]string, len(merged))
+	for i, item := range merged {
+		ids[i] = item.ProductID
+	}
+	found, err := s.products.GetMany(ctx, ids)
+	if err != nil {
+		return Order{}, err
+	}
+	if missing := missingIDs(ids, found); len(missing) > 0 {
+		return Order{}, fmt.Errorf("%w: %s", ErrProductNotFound, describeIDs(missing))
+	}
+
+	resolved := make([]product.Product, len(merged))
 	subtotal := 0.0
-	for _, item := range merged {
-		p, err := s.products.Get(ctx, item.ProductID)
-		if err != nil {
-			if errors.Is(err, product.ErrNotFound) {
-				return Order{}, fmt.Errorf("%w: product %s", ErrProductNotFound, item.ProductID)
-			}
-			return Order{}, err
-		}
-		resolved = append(resolved, p)
-		subtotal += p.Price * float64(item.Quantity)
+	for i, item := range merged {
+		resolved[i] = found[item.ProductID]
+		subtotal += resolved[i].Price * float64(item.Quantity)
 	}
 
 	valid := req.CouponCode == "" || s.coupons.IsValid(req.CouponCode)
@@ -143,6 +152,25 @@ func (s *service) placeOrder(ctx context.Context, req CreateOrderRequest) (Order
 		slog.Float64("discount", created.Discount),
 	)
 	return created, nil
+}
+
+// missingIDs returns the ids with no product in found, in request order.
+func missingIDs(ids []string, found map[string]product.Product) []string {
+	var missing []string
+	for _, id := range ids {
+		if _, ok := found[id]; !ok {
+			missing = append(missing, id)
+		}
+	}
+	return missing
+}
+
+// describeIDs renders "product 7" or "products 7, 11" for error messages.
+func describeIDs(ids []string) string {
+	if len(ids) == 1 {
+		return "product " + ids[0]
+	}
+	return "products " + strings.Join(ids, ", ")
 }
 
 func checkQuantity(item Item) error {

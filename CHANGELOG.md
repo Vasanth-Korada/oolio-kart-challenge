@@ -20,6 +20,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 - The in-memory fallback is dev only; stage and prod exit when Postgres is unreachable
 - Compose sets only `APP_ENV` and `DATABASE_URL` and passes the other variables through, so the config file wins; `deploy/.env.example` leaves overrides empty
 - Default log level in dev is `debug` (was `info`)
+- **Batched order queries:** one `SELECT … WHERE id = ANY($1)` for the whole cart and one `unnest` insert for all lines; an order costs 5 statements for any cart size (was 2N + 3: 23 for 10 products). Measured on 10-product orders: p50 5.71 → 2.31 ms, p95 10.24 → 5.33 ms
+- An order with several unknown products reports all of them (`products 999, 11`), not just the first
+- `product.Repository` gains `GetByIDs`, `product.Service` gains `GetMany`
+- `make integration-test` also runs the new `*DBSuite` suites
 
 ## [1.3.0] - 2026-09-24
 

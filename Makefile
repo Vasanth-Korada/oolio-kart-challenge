@@ -7,7 +7,7 @@ test:
 	go test ./... -race -count=1
 
 integration-test:
-	go test -tags integration ./... -run TestDBRepository -v
+	go test -tags integration ./... -run 'TestDBRepository|DBSuite' -v
 
 vet:
 	go vet ./...
