@@ -58,8 +58,8 @@
   `coupons.idx` format are not, so changing them is minor or patch, not major
   (the owner chose 1.1.0 over 2.0.0 for the index format change).
 - Released: `v1.0.0` (`8028b8e`, submission), `v1.1.0` (`c465f40`, raw keys +
-  refactor) and `v1.1.1` (quantity cap + GoDoc), all annotated tags with GitHub
-  releases.
+  refactor) `v1.1.1` (quantity cap + GoDoc) and `v1.2.0` (Prometheus metrics +
+  Grafana), all annotated tags with GitHub releases.
 
 ## CI (`.github/workflows/ci.yml`)
 

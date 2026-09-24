@@ -6,6 +6,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-24
+
 ### Added
 
 - **Metrics:** Prometheus `/metrics` with HTTP rate, errors and latency (by route pattern), orders placed and rejected, order totals, coupon checks, index size, storage mode, Go runtime and process metrics
@@ -13,6 +15,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 - **Grafana Cloud:** Alloy config and a `cloud` Compose profile that push metrics with credentials from `deploy/.env`
 - **Local stack:** `local` Compose profile with Prometheus and Grafana, dashboard preloaded
 - `make observability-local`, `make observability-cloud`, `make traffic` (`scripts/loadgen.sh`)
+- README Observability section with the live Grafana Cloud dashboard link and a screenshot
 
 ### Changed
 
@@ -79,6 +82,7 @@ Original assignment submission (`main`).
 - Unit, integration, and OpenAPI contract tests; Postman collection
 - CI: gofmt, vet, golangci-lint, build, race-enabled tests
 
+[1.2.0]: https://github.com/Vasanth-Korada/oolio-kart-challenge/releases/tag/v1.2.0
 [1.1.1]: https://github.com/Vasanth-Korada/oolio-kart-challenge/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Vasanth-Korada/oolio-kart-challenge/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Vasanth-Korada/oolio-kart-challenge/releases/tag/v1.0.0
