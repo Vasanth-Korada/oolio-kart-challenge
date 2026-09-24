@@ -12,11 +12,18 @@ import (
 // maps each of them to 422.
 var (
 	ErrEmptyItems       = errors.New("order must contain at least one item")
+	ErrTooManyItems     = fmt.Errorf("order can have at most %d items", MaxLineItems)
 	ErrInvalidQuantity  = errors.New("item quantity must be greater than zero")
 	ErrQuantityTooLarge = fmt.Errorf("item quantity must be at most %d", MaxItemQuantity)
 	ErrProductNotFound  = errors.New("one or more products were not found")
 	ErrInvalidCoupon    = errors.New("coupon code is invalid")
 )
+
+// MaxLineItems caps how many lines one order may send, before duplicates are
+// merged. It is checked before any work that grows with the cart, so a
+// request with a million lines costs one comparison, not a loop, a map and a
+// huge query.
+const MaxLineItems = 100
 
 // MaxItemQuantity caps one line item, after duplicates are merged. It keeps
 // order totals inside the database columns, so an absurd quantity is a 422,

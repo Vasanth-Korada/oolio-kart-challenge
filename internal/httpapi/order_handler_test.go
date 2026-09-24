@@ -40,6 +40,7 @@ func (s *OrderHandlerSuite) TestCreateStatusCodes() {
 	}{
 		{name: "malformed json", body: `{not json`, service: &fakeOrderService{}, wantStatus: http.StatusBadRequest},
 		{name: "empty items", body: `{"items":[]}`, service: &fakeOrderService{err: order.ErrEmptyItems}, wantStatus: http.StatusUnprocessableEntity},
+		{name: "too many items", body: `{"items":[{"productId":"1","quantity":1}]}`, service: &fakeOrderService{err: order.ErrTooManyItems}, wantStatus: http.StatusUnprocessableEntity},
 		{name: "quantity too large", body: `{"items":[{"productId":"1","quantity":20000000}]}`, service: &fakeOrderService{err: order.ErrQuantityTooLarge}, wantStatus: http.StatusUnprocessableEntity},
 		{name: "invalid coupon", body: `{"items":[{"productId":"1","quantity":1}],"couponCode":"BAD"}`, service: &fakeOrderService{err: order.ErrInvalidCoupon}, wantStatus: http.StatusUnprocessableEntity},
 		{name: "unexpected service error", body: `{"items":[{"productId":"1","quantity":1}]}`, service: &fakeOrderService{err: errors.New("db down")}, wantStatus: http.StatusInternalServerError},

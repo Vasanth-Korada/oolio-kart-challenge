@@ -43,6 +43,15 @@ func item(productID string, quantity int) order.Item {
 	return order.Item{ProductID: productID, Quantity: quantity}
 }
 
+// lines returns n copies of one line, e.g. to test the line-count cap.
+func lines(n int, line order.Item) []order.Item {
+	out := make([]order.Item, n)
+	for i := range out {
+		out[i] = line
+	}
+	return out
+}
+
 func (s *ServiceSuite) TestValidation() {
 	tests := []struct {
 		name       string
@@ -52,6 +61,9 @@ func (s *ServiceSuite) TestValidation() {
 		wantErr    error
 	}{
 		{name: "empty items", wantErr: order.ErrEmptyItems},
+		{name: "lines at the maximum", items: lines(order.MaxLineItems, item("1", 1))},
+		{name: "lines above the maximum", items: lines(order.MaxLineItems+1, item("1", 1)), wantErr: order.ErrTooManyItems},
+		{name: "line cap is checked before quantities", items: lines(order.MaxLineItems+1, item("999", 0)), wantErr: order.ErrTooManyItems},
 		{name: "zero quantity", items: []order.Item{item("1", 0)}, wantErr: order.ErrInvalidQuantity},
 		{name: "negative quantity", items: []order.Item{item("1", -1)}, wantErr: order.ErrInvalidQuantity},
 		{name: "quantity at the maximum", items: []order.Item{item("1", order.MaxItemQuantity)}},
@@ -186,6 +198,7 @@ func (s *ServiceSuite) TestReportsEventsToRecorder() {
 		{name: "invalid coupon", items: []order.Item{item("1", 1)}, couponCode: "BADCODE1",
 			want: []string{"coupon valid=false", "rejected invalid_coupon"}},
 		{name: "empty items", want: []string{"rejected empty_items"}},
+		{name: "too many lines", items: lines(order.MaxLineItems+1, item("1", 1)), want: []string{"rejected too_many_items"}},
 		{name: "quantity too large", items: []order.Item{item("1", 1001)}, want: []string{"rejected quantity_too_large"}},
 		{name: "unknown product", items: []order.Item{item("999", 1)}, want: []string{"rejected product_not_found"}},
 	}
@@ -199,6 +212,51 @@ func (s *ServiceSuite) TestReportsEventsToRecorder() {
 			_, _ = svc.PlaceOrder(context.Background(), order.CreateOrderRequest{Items: tt.items, CouponCode: tt.couponCode})
 
 			s.Equal(tt.want, rec.events)
+		})
+	}
+}
+
+// spyProducts wraps the seeded catalog and counts GetMany calls, the only
+// product call PlaceOrder makes (and, with Postgres, its only SELECT).
+type spyProducts struct {
+	product.Service
+	getManyCalls int
+}
+
+func (p *spyProducts) GetMany(ctx context.Context, ids []string) (map[string]product.Product, error) {
+	p.getManyCalls++
+	return p.Service.GetMany(ctx, ids)
+}
+
+func (s *ServiceSuite) TestCouponIsCheckedBeforeProductLookup() {
+	tests := []struct {
+		name        string
+		items       []order.Item
+		couponCode  string
+		wantErr     error
+		wantLookups int
+	}{
+		{name: "invalid coupon never looks up products", items: []order.Item{item("1", 1)}, couponCode: "BADCODE1",
+			wantErr: order.ErrInvalidCoupon, wantLookups: 0},
+		{name: "invalid coupon wins over an unknown product", items: []order.Item{item("999", 1)}, couponCode: "BADCODE1",
+			wantErr: order.ErrInvalidCoupon, wantLookups: 0},
+		{name: "valid coupon then one lookup", items: []order.Item{item("1", 1)}, couponCode: "HAPPYHRS", wantLookups: 1},
+		{name: "no coupon then one lookup", items: []order.Item{item("1", 1)}, wantLookups: 1},
+	}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			spy := &spyProducts{Service: product.NewService(product.NewMemoryRepository(product.SeedProducts()), logger)}
+			svc := order.NewService(spy, fakeCoupons{"HAPPYHRS": true}, order.NewMemoryRepository(), nil, logger)
+
+			_, err := svc.PlaceOrder(context.Background(), order.CreateOrderRequest{Items: tt.items, CouponCode: tt.couponCode})
+
+			if tt.wantErr != nil {
+				s.Require().ErrorIs(err, tt.wantErr)
+			} else {
+				s.Require().NoError(err)
+			}
+			s.Equal(tt.wantLookups, spy.getManyCalls)
 		})
 	}
 }

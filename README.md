@@ -41,7 +41,7 @@ Go backend for Oolio's food-ordering OpenAPI 3.1 spec, with coupon validation ov
 - **Metrics:** Prometheus `/metrics` (HTTP, orders, coupons, Go runtime) with a Grafana dashboard
 - **Docker:** one command, distroless runtime image
 - **CI on every push:** gofmt, vet, golangci-lint, build, race-enabled tests
-- **Postman collection:** 19 requests, each with assertions
+- **Postman collection:** 20 requests, each with assertions
 
 ---
 
@@ -168,6 +168,7 @@ Spec: [`api/openapi.yaml`](api/openapi.yaml)
 ```
 
 - `items` are merged: product `1` sent twice becomes quantity `3`
+- An order can have 1 to 100 lines (counted before merging); otherwise `422` "order can have at most 100 items"
 - `quantity` must be 1 to 1000 per line item, after merging; otherwise `422`
 - `couponCode` and `subtotal` extend the base spec; `discounts` and `total` are in it
 - Errors use one shape: `{ "code": 422, "type": "validation_error", "message": "..." }`
@@ -376,6 +377,7 @@ Plus the standard `go_*` and `process_*` metrics.
 | One transaction per order | Never an order without its items |
 | Batched order queries | One `SELECT … ANY($1)` + one `unnest` insert: 5 statements for any cart size |
 | Quantity capped at 1000 per line | Totals stay inside the DB columns; bad input is `422`, not `500` |
+| At most 100 lines per order, checked first | A huge cart costs one comparison, not a loop, a map and a giant query |
 | Sentinel errors + `errors.Is` | Status codes mapped by identity, not string matching |
 | 422 for validation, 400 for bad JSON | Separates "can't parse" from "business rule failed" |
 | In-memory fallback in dev only | Reviewer convenience; stage and prod fail fast |
@@ -417,7 +419,7 @@ Found in self-review; planned next.
 | Middleware | `middleware_test.go` | Bearer vs `api_key`, 401 vs 403, scope check, CORS, request id |
 | Repository | `*_repository_test.go` | In-memory; Postgres with `-tags integration` |
 | Contract | `contract_test.go` | Every response validated against `api/openapi.yaml`, incl. `/auth/token` |
-| End to end | `postman/` | 19 requests incl. all error paths and the JWT flow |
+| End to end | `postman/` | 20 requests incl. all error paths and the JWT flow |
 
 - Table-driven cases throughout, run with `-race` in CI
 - Real-data check: `HAPPYHRS`, `FIFTYOFF` valid, `SUPER100` invalid

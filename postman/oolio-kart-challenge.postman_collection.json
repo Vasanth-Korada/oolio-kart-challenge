@@ -498,6 +498,48 @@
 					}
 				},
 				{
+					"name": "Place Order - Too Many Items",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const items = Array.from({ length: 101 }, () => ({ productId: '1', quantity: 1 }));",
+									"pm.variables.set('tooManyItemsBody', JSON.stringify({ items }));"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 422', () => pm.response.to.have.status(422));",
+									"pm.test('message names the limit', () => pm.expect(pm.response.json().message).to.include('at most 100 items'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "api_key", "value": "{{apiKey}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{{tooManyItemsBody}}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["order"]
+						},
+						"description": "101 lines (the pre-request script builds them). An order can have at most 100 lines, checked before any per-line work, so a huge cart costs one comparison."
+					}
+				},
+				{
 					"name": "Place Order - Invalid Coupon",
 					"event": [
 						{

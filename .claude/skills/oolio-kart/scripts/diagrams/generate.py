@@ -56,6 +56,7 @@ E(oh, pr, pg, "", extra="exitX=0.5;exitY=1;entryX=0.25;entryY=0;")
 E(oh, rp, pg, "", extra="exitX=0.5;exitY=1;entryX=0.75;entryY=0;")
 note(oh, "Key points", ["Prices come from the catalog, never the client",
                         "5 SQL statements per order, any cart size",
+                        "At most 100 lines; a bad coupon never reaches the DB",
                         "Errors: 400 · 401 · 403 · 422 · 500"], 250, 300, 420)
 
 ol = Page("LLD - Order placement flow", "ol")
@@ -84,24 +85,26 @@ lbox("Middleware", "request id · metrics · logs · CORS", "blue")
 ldecide("Credentials valid?", "401 missing or bad token<br>403 wrong api_key")
 ldecide("Allowed to order?", "403 missing scope")
 ldecide("Valid JSON?", "400 bad JSON")
-ldecide("Items OK?<br><span style='font-size:11px'>not empty · qty 1 to 1000</span>", "422 invalid items")
+ldecide("Items OK?<br><span style='font-size:11px'>1 to 100 lines · qty 1 to 1000</span>", "422 invalid items<br>or more than 100 lines")
 lbox("Merge duplicates", "same product → one line")
+ldecide("Coupon valid?<br><span style='font-size:11px'>in memory, if one was sent</span>", "422 invalid coupon<br>(no SQL sent)")
 lbox("Look up products", "1 query for the whole cart")
 ldecide("All products exist?", "422 lists every<br>unknown product")
-ldecide("Coupon valid?<br><span style='font-size:11px'>if one was sent</span>", "422 invalid coupon")
 lbox("Price the order", "subtotal · 5% discount · total")
 lbox("Save", "1 transaction: order + all lines", "green")
 lbox("200 OK", "order JSON", "green")
-note(ol, "Why it is fast", ["1 query reads every product", "1 insert writes every line",
-                            "5 statements for any cart size (was 23 for 10 products)"], 900, 110, 380)
+note(ol, "Why it is fast", ["Cheap checks first: line cap, then the in-memory coupon, then SQL",
+                            "1 query reads every product", "1 insert writes every line",
+                            "5 statements for any cart size (was 23 for 10 products)",
+                            "A bad coupon costs 0 statements (was 1)"], 900, 110, 380)
 
 od = Page("Dry run - real request", "od")
 header(od, "Order placement: dry run", "A real request on Docker + Postgres, with the values it produced.")
 B(od, "Request", "HAPPYHRS · product 1 × 2, 3 × 1, 1 × 1", 30, 110, 330, 64, "gray")
-rows = [("1 · Merge", "product 1 × 3, product 3 × 1"),
-        ("2 · Prices", "6.50 × 3 + 8.00 × 1 = 27.50"),
-        ("3 · Coupon", "HAPPYHRS valid → 5% = 1.38"),
-        ("4 · Total", "27.50 − 1.38 = 26.12"),
+rows = [("1 · Merge", "3 lines (≤ 100) → product 1 × 3, product 3 × 1"),
+        ("2 · Coupon", "HAPPYHRS valid (in memory, before any SQL)"),
+        ("3 · Prices", "6.50 × 3 + 8.00 × 1 = 27.50"),
+        ("4 · Total", "5% = 1.38 · 27.50 − 1.38 = 26.12"),
         ("5 · Save", "BEGIN · order · 2 lines in 1 insert · COMMIT"),
         ("6 · Response", "200 · id 5cb5a242-…")]
 prev = None
@@ -117,11 +120,12 @@ table = ("<b>Error responses</b> (same stack)<br><br>"
          "<tr><td><b>400</b></td><td>body is not valid JSON</td></tr>"
          "<tr><td><b>401</b></td><td>no credentials or bad token</td></tr>"
          "<tr><td><b>403</b></td><td>wrong api_key</td></tr>"
-         "<tr><td><b>422</b></td><td>unknown product · bad coupon · qty over 1000</td></tr>"
+         "<tr><td><b>422</b></td><td>over 100 lines · qty over 1000 · bad coupon · unknown product</td></tr>"
          "<tr><td><b>405</b></td><td>GET /order</td></tr></table>")
 od.box(table, 440, 110, 420, 250, "white", extra="align=left;verticalAlign=top;spacingLeft=12;spacingTop=10;")
 note(od, "SQL per order", ["5 statements, for any cart size", "10 products: 23 → 5",
-                           "p50 5.7 → 2.3 ms (10-product orders)"], 440, 400, 420)
+                           "p50 5.7 → 2.3 ms (10-product orders)",
+                           "bad coupon: 1 → 0 statements (rejected before SQL)"], 440, 400, 420)
 
 # ====================================================================== COUPON
 ch = Page("HLD - Coupon validation", "ch")

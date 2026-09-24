@@ -79,6 +79,7 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, order.ErrEmptyItems),
+			errors.Is(err, order.ErrTooManyItems),
 			errors.Is(err, order.ErrInvalidQuantity),
 			errors.Is(err, order.ErrQuantityTooLarge),
 			errors.Is(err, order.ErrProductNotFound),

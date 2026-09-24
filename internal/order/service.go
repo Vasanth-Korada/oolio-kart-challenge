@@ -54,6 +54,7 @@ func rejectionReason(err error) (string, bool) {
 		reason string
 	}{
 		{ErrEmptyItems, "empty_items"},
+		{ErrTooManyItems, "too_many_items"},
 		{ErrInvalidQuantity, "invalid_quantity"},
 		{ErrQuantityTooLarge, "quantity_too_large"},
 		{ErrProductNotFound, "product_not_found"},
@@ -70,6 +71,9 @@ func rejectionReason(err error) (string, bool) {
 func (s *service) placeOrder(ctx context.Context, req CreateOrderRequest) (Order, error) {
 	if len(req.Items) == 0 {
 		return Order{}, ErrEmptyItems
+	}
+	if len(req.Items) > MaxLineItems {
+		return Order{}, ErrTooManyItems
 	}
 	// Each raw quantity is bounded before merging, so summing duplicates
 	// below can't overflow int.
@@ -93,6 +97,17 @@ func (s *service) placeOrder(ctx context.Context, req CreateOrderRequest) (Order
 		}
 	}
 
+	// The coupon check is an in-memory binary search, so it runs before the
+	// product lookup: an order with a bad coupon never reaches the database.
+	valid := req.CouponCode == "" || s.coupons.IsValid(req.CouponCode)
+	if req.CouponCode != "" {
+		s.rec.CouponChecked(valid)
+	}
+	if !valid {
+		s.logger.WarnContext(ctx, "order: rejected invalid coupon", slog.String("coupon_code", req.CouponCode))
+		return Order{}, ErrInvalidCoupon
+	}
+
 	// One query for every product in the cart, instead of one per line: the
 	// cost stays flat as the cart grows, and all prices come from the same
 	// moment.
@@ -113,15 +128,6 @@ func (s *service) placeOrder(ctx context.Context, req CreateOrderRequest) (Order
 	for i, item := range merged {
 		resolved[i] = found[item.ProductID]
 		subtotal += resolved[i].Price * float64(item.Quantity)
-	}
-
-	valid := req.CouponCode == "" || s.coupons.IsValid(req.CouponCode)
-	if req.CouponCode != "" {
-		s.rec.CouponChecked(valid)
-	}
-	if !valid {
-		s.logger.WarnContext(ctx, "order: rejected invalid coupon", slog.String("coupon_code", req.CouponCode))
-		return Order{}, ErrInvalidCoupon
 	}
 
 	discount := 0.0

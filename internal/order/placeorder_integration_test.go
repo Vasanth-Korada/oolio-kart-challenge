@@ -143,3 +143,33 @@ func (s *PlaceOrderDBSuite) TestUnknownProductsAreAllReportedAndNothingIsStored(
 	s.Require().NoError(s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM orders`).Scan(&after))
 	s.Equal(before, after)
 }
+
+func (s *PlaceOrderDBSuite) TestInvalidCouponSendsNoStatements() {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	products := product.NewService(product.NewDBRepository(s.pool), logger)
+	svc := order.NewService(products, fakeCoupons{"HAPPYHRS": true}, order.NewDBRepository(s.pool), nil, logger)
+
+	tests := []struct {
+		name           string
+		couponCode     string
+		wantErr        error
+		wantStatements int64
+	}{
+		{name: "invalid coupon: rejected before the database", couponCode: "BADCODE1", wantErr: order.ErrInvalidCoupon, wantStatements: 0},
+		{name: "valid coupon: the usual batched order", couponCode: "HAPPYHRS", wantStatements: batchedStatements},
+	}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			s.counter.n.Store(0)
+
+			_, err := svc.PlaceOrder(context.Background(), order.CreateOrderRequest{Items: cart(3), CouponCode: tt.couponCode})
+
+			if tt.wantErr != nil {
+				s.Require().ErrorIs(err, tt.wantErr)
+			} else {
+				s.Require().NoError(err)
+			}
+			s.Equal(tt.wantStatements, s.counter.n.Load())
+		})
+	}
+}

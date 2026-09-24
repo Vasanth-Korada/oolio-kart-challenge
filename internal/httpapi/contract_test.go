@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -201,6 +202,7 @@ func (s *ContractSuite) TestPlaceOrderWithAPIKey() {
 		{name: "wrong api key", body: `{"items":[{"productId":"1","quantity":1}]}`, headers: map[string]string{"api_key": "wrong-key"}, wantStatus: http.StatusForbidden},
 		{name: "invalid coupon", body: `{"items":[{"productId":"1","quantity":1}],"couponCode":"NOTVALID1"}`, headers: map[string]string{"api_key": testAPIKey}, wantStatus: http.StatusUnprocessableEntity},
 		{name: "empty items", body: `{"items":[]}`, headers: map[string]string{"api_key": testAPIKey}, wantStatus: http.StatusUnprocessableEntity},
+		{name: "101 lines", body: `{"items":[` + strings.TrimSuffix(strings.Repeat(`{"productId":"1","quantity":1},`, 101), ",") + `]}`, headers: map[string]string{"api_key": testAPIKey}, wantStatus: http.StatusUnprocessableEntity},
 	}
 	for _, tt := range tests {
 		s.Run(tt.name, func() {

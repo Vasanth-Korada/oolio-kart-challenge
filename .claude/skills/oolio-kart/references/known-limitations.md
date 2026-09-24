@@ -1,8 +1,7 @@
 # Known limitations
 
 Found in self-review. This is the full list; the README's Known Limitations
-table shows the main ones (it leaves out the coupon-check order, one worker per
-file, the `"01"` id and the empty CORS origin rows). When one is fixed, remove it here and from the README if it is listed there, and add a
+table shows the main ones (it leaves out the one worker per file, the `"01"` id and the empty CORS origin rows). When one is fixed, remove it here and from the README if it is listed there, and add a
 CHANGELOG entry.
 
 | Limitation | Where | Planned fix |
@@ -16,7 +15,6 @@ CHANGELOG entry.
 | No request body size limit | `OrderHandler.Create` | `http.MaxBytesReader` |
 | Migrations have no lock across replicas | `postgres.Migrate` | `pg_advisory_lock` |
 | `/metrics` is public on the API port | `httpapi.NewRouter` | Separate internal port or network policy |
-| Coupon checked after the product lookups | `service.PlaceOrder` | Check it first (in-memory, cheap) |
 | One worker per coupon file | `coupon.Build` | Split each file by gzip member / byte range |
 | `"01"` works on `GET /product/01` but not as an order `productId` | handler vs service | Normalise ids in one place |
 | `CORS_ALLOWED_ORIGIN=""` can't disable CORS (viper ignores empty env vars) | `internal/config` | Set `cors.allowedOrigin` to `""` in the file, or `AllowEmptyEnv` |
@@ -26,4 +24,5 @@ CHANGELOG entry.
 
 Fixed so far (don't re-add): N+1 order queries (batched, 5 statements per order),
 huge quantity returned 500 (capped at 1000 → 422),
+coupon checked after the product lookup (now before it, 0 SQL for a bad coupon),
 truncated gzip line indexed as a code, invalid `.golangci.yml` v1 key.

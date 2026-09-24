@@ -30,7 +30,7 @@ Unit tests aren't enough for anything touching HTTP, SQL or validation:
 
 1. `docker compose -f deploy/docker-compose.yml up -d --build` and wait for `/readyz`.
 2. `curl` the happy path and each changed error path; check status and body.
-3. `make postman-test` (newman; currently 19 requests, 32 assertions, all must pass).
+3. `make postman-test` (newman; currently 20 requests, 34 assertions, all must pass).
 4. `docker compose -f deploy/docker-compose.yml down` when done (without `-v`, so
    the volume survives).
 5. If metrics changed, also `curl -s localhost:8080/metrics | grep ^oolio_` and

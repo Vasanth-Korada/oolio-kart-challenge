@@ -6,6 +6,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+### Added
+
+- **Line-item cap:** an order can have at most 100 lines (`MaxLineItems`), checked before any per-line work; more is `422` "order can have at most 100 items", with the metric reason `too_many_items`
+- Postman request with 101 lines (20 requests, 34 assertions)
+
+### Changed
+
+- **Coupon checked before the product lookup:** the in-memory coupon check now runs before `GetMany`, so an invalid coupon is rejected with no SQL statement (was 1). An order with both an invalid coupon and an unknown product now gets the coupon error (still `422`)
+- Order diagrams show the 100-line cap and the coupon check before the product lookup
+
 ## [1.4.0] - 2026-09-24
 
 ### Added
