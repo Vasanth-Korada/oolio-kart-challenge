@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/suite"
+
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/httpapi"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/order"
 )
@@ -21,37 +23,26 @@ func (f *fakeOrderService) PlaceOrder(context.Context, order.CreateOrderRequest)
 	return f.result, f.err
 }
 
-func TestOrderHandler_Create(t *testing.T) {
+type OrderHandlerSuite struct {
+	suite.Suite
+}
+
+func TestOrderHandlerSuite(t *testing.T) {
+	suite.Run(t, new(OrderHandlerSuite))
+}
+
+func (s *OrderHandlerSuite) TestCreateStatusCodes() {
 	tests := []struct {
 		name       string
 		body       string
 		service    *fakeOrderService
 		wantStatus int
 	}{
-		{
-			name:       "malformed json",
-			body:       `{not json`,
-			service:    &fakeOrderService{},
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name:       "empty items rejected by service",
-			body:       `{"items":[]}`,
-			service:    &fakeOrderService{err: order.ErrEmptyItems},
-			wantStatus: http.StatusUnprocessableEntity,
-		},
-		{
-			name:       "invalid coupon rejected by service",
-			body:       `{"items":[{"productId":"1","quantity":1}],"couponCode":"BAD"}`,
-			service:    &fakeOrderService{err: order.ErrInvalidCoupon},
-			wantStatus: http.StatusUnprocessableEntity,
-		},
-		{
-			name:       "unexpected service error",
-			body:       `{"items":[{"productId":"1","quantity":1}]}`,
-			service:    &fakeOrderService{err: errors.New("db down")},
-			wantStatus: http.StatusInternalServerError,
-		},
+		{name: "malformed json", body: `{not json`, service: &fakeOrderService{}, wantStatus: http.StatusBadRequest},
+		{name: "empty items", body: `{"items":[]}`, service: &fakeOrderService{err: order.ErrEmptyItems}, wantStatus: http.StatusUnprocessableEntity},
+		{name: "quantity too large", body: `{"items":[{"productId":"1","quantity":20000000}]}`, service: &fakeOrderService{err: order.ErrQuantityTooLarge}, wantStatus: http.StatusUnprocessableEntity},
+		{name: "invalid coupon", body: `{"items":[{"productId":"1","quantity":1}],"couponCode":"BAD"}`, service: &fakeOrderService{err: order.ErrInvalidCoupon}, wantStatus: http.StatusUnprocessableEntity},
+		{name: "unexpected service error", body: `{"items":[{"productId":"1","quantity":1}]}`, service: &fakeOrderService{err: errors.New("db down")}, wantStatus: http.StatusInternalServerError},
 		{
 			name: "success",
 			body: `{"items":[{"productId":"1","quantity":1}]}`,
@@ -62,17 +53,15 @@ func TestOrderHandler_Create(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 	}
-
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		s.Run(tt.name, func() {
 			h := &httpapi.OrderHandler{Service: tt.service}
 			req := httptest.NewRequest(http.MethodPost, "/order", bytes.NewBufferString(tt.body))
 			rec := httptest.NewRecorder()
+
 			h.Create(rec, req)
 
-			if rec.Code != tt.wantStatus {
-				t.Fatalf("status = %d, want %d, body=%s", rec.Code, tt.wantStatus, rec.Body.String())
-			}
+			s.Equal(tt.wantStatus, rec.Code, "body=%s", rec.Body.String())
 		})
 	}
 }

@@ -36,7 +36,7 @@ Go backend for Oolio's food-ordering OpenAPI 3.1 spec, with coupon validation ov
 - **Health checks:** `/healthz` (liveness), `/readyz` (readiness + storage mode)
 - **Docker:** one command, distroless runtime image
 - **CI on every push:** gofmt, vet, golangci-lint, build, race-enabled tests
-- **Postman collection:** 14 requests, each with assertions
+- **Postman collection:** 15 requests, each with assertions
 
 ---
 
@@ -120,6 +120,7 @@ Spec: [`api/openapi.yaml`](api/openapi.yaml)
 ```
 
 - `items` are merged: product `1` sent twice becomes quantity `3`
+- `quantity` must be 1 to 1000 per line item, after merging; otherwise `422`
 - `couponCode` and `subtotal` extend the base spec; `discounts` and `total` are in it
 - Errors use one shape: `{ "code": 422, "type": "validation_error", "message": "..." }`
 
@@ -228,6 +229,7 @@ docs/diagrams/     diagrams (PNG + editable .drawio)
 | Server-side pricing | Client prices are never trusted |
 | `unit_price` stored per line | Later price changes can't rewrite past orders |
 | One transaction per order | Never an order without its items |
+| Quantity capped at 1000 per line | Totals stay inside the DB columns; bad input is `422`, not `500` |
 | Sentinel errors + `errors.Is` | Status codes mapped by identity, not string matching |
 | 422 for validation, 400 for bad JSON | Separates "can't parse" from "business rule failed" |
 | In-memory fallback | Reviewer convenience; production should fail fast |
@@ -243,7 +245,6 @@ Found in self-review; planned next.
 | --- | --- |
 | Money is `float64` in Go (exact `NUMERIC` in Postgres) | `int64` cents |
 | One `SELECT` and one `INSERT` per order item | `WHERE id = ANY($1)` + `pgx.Batch` |
-| Huge `quantity` overflows Postgres → `500` | Cap quantity → `422` |
 | No `Idempotency-Key`: a retry creates a duplicate order | Idempotency key + unique constraint |
 | Flat 5% discount is hardcoded | `DiscountPolicy` interface per coupon |
 | Committed index holds valid codes in plain text | Build in CI from a private source |
@@ -263,7 +264,7 @@ Found in self-review; planned next.
 | Handler | `*_handler_test.go` | Status codes and error mapping |
 | Repository | `*_repository_test.go` | In-memory; Postgres with `-tags integration` |
 | Contract | `contract_test.go` | Every response validated against `api/openapi.yaml` |
-| End to end | `postman/` | 14 requests incl. all error paths |
+| End to end | `postman/` | 15 requests incl. all error paths |
 
 - Table-driven cases throughout, run with `-race` in CI
 - Real-data check: `HAPPYHRS`, `FIFTYOFF` valid, `SUPER100` invalid

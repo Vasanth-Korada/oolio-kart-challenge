@@ -6,9 +6,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+### Fixed
+
+- **Order quantity:** a huge quantity overflowed Postgres and returned 500; each line item is now capped at 1000 → 422
+- **Duplicate items:** quantities are bounded before merging, so two huge duplicates can't overflow into a negative quantity
+
 ### Added
 
 - GoDoc comments on every package and exported identifier
+- Postman request for the quantity cap (15 requests)
+
+### Changed
+
+- Order service and handler tests moved to `testify/suite`
+- Order diagrams show the quantity checks and the re-captured 422
 
 ## [1.1.0] - 2026-09-24
 

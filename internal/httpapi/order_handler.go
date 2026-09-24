@@ -80,6 +80,7 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, order.ErrEmptyItems),
 			errors.Is(err, order.ErrInvalidQuantity),
+			errors.Is(err, order.ErrQuantityTooLarge),
 			errors.Is(err, order.ErrProductNotFound),
 			errors.Is(err, order.ErrInvalidCoupon):
 			WriteError(w, http.StatusUnprocessableEntity, "validation_error", err.Error())

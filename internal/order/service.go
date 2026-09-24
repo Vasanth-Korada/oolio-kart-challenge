@@ -32,9 +32,11 @@ func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order
 	if len(req.Items) == 0 {
 		return Order{}, ErrEmptyItems
 	}
+	// Each raw quantity is bounded before merging, so summing duplicates
+	// below can't overflow int.
 	for _, item := range req.Items {
-		if item.Quantity <= 0 {
-			return Order{}, fmt.Errorf("%w: product %s", ErrInvalidQuantity, item.ProductID)
+		if err := checkQuantity(item); err != nil {
+			return Order{}, err
 		}
 	}
 
@@ -46,6 +48,11 @@ func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order
 	// by summing quantities is also just the more sensible interpretation
 	// of "the same product appears twice in this cart."
 	merged := mergeItems(req.Items)
+	for _, item := range merged {
+		if err := checkQuantity(item); err != nil {
+			return Order{}, err
+		}
+	}
 
 	resolved := make([]product.Product, 0, len(merged))
 	subtotal := 0.0
@@ -94,6 +101,16 @@ func (s *service) PlaceOrder(ctx context.Context, req CreateOrderRequest) (Order
 		slog.Float64("discount", created.Discount),
 	)
 	return created, nil
+}
+
+func checkQuantity(item Item) error {
+	switch {
+	case item.Quantity <= 0:
+		return fmt.Errorf("%w: product %s", ErrInvalidQuantity, item.ProductID)
+	case item.Quantity > MaxItemQuantity:
+		return fmt.Errorf("%w: product %s", ErrQuantityTooLarge, item.ProductID)
+	}
+	return nil
 }
 
 // mergeItems sums quantities for repeated productIds, preserving each

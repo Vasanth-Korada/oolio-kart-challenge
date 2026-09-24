@@ -331,6 +331,38 @@
 					}
 				},
 				{
+					"name": "Place Order - Quantity Above Maximum",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test('status is 422', () => pm.response.to.have.status(422));",
+									"pm.test('message names the limit', () => pm.expect(pm.response.json().message).to.include('at most 1000'));"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "api_key", "value": "{{apiKey}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    { \"productId\": \"10\", \"quantity\": 20000000 }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/order",
+							"host": ["{{baseUrl}}"],
+							"path": ["order"]
+						},
+						"description": "Regression case for a real bug: this quantity overflowed Postgres NUMERIC(10,2) and returned 500. Quantities above 1000 per line item are now a 422."
+					}
+				},
+				{
 					"name": "Place Order - Invalid Coupon",
 					"event": [
 						{

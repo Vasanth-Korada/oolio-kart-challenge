@@ -3,6 +3,7 @@ package order
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/product"
 )
@@ -10,11 +11,17 @@ import (
 // Errors returned by Service.PlaceOrder for invalid input. The HTTP layer
 // maps each of them to 422.
 var (
-	ErrEmptyItems      = errors.New("order must contain at least one item")
-	ErrInvalidQuantity = errors.New("item quantity must be greater than zero")
-	ErrProductNotFound = errors.New("one or more products were not found")
-	ErrInvalidCoupon   = errors.New("coupon code is invalid")
+	ErrEmptyItems       = errors.New("order must contain at least one item")
+	ErrInvalidQuantity  = errors.New("item quantity must be greater than zero")
+	ErrQuantityTooLarge = fmt.Errorf("item quantity must be at most %d", MaxItemQuantity)
+	ErrProductNotFound  = errors.New("one or more products were not found")
+	ErrInvalidCoupon    = errors.New("coupon code is invalid")
 )
+
+// MaxItemQuantity caps one line item, after duplicates are merged. It keeps
+// order totals inside the database columns, so an absurd quantity is a 422,
+// not a numeric overflow (500).
+const MaxItemQuantity = 1000
 
 // CouponDiscountRate is applied to the order subtotal when a valid
 // coupon is supplied.
