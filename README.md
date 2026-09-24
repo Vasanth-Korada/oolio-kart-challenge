@@ -4,7 +4,7 @@
 
 Go backend for Oolio's food-ordering OpenAPI 3.1 spec, with coupon validation over ~313M real codes.
 
-- **Version:** 1.1.0 · see [CHANGELOG.md](CHANGELOG.md)
+- **Version:** 1.1.1 · see [CHANGELOG.md](CHANGELOG.md)
 - **Stack:** Go 1.25 · stdlib `net/http` · Postgres 16 (`pgx`) · Docker
 - **Frontend (demo only):** [oolio-kart-challenge-web](https://github.com/Vasanth-Korada/oolio-kart-challenge-web)
 

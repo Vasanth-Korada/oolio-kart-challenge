@@ -6,6 +6,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-09-24
+
 ### Fixed
 
 - **Order quantity:** a huge quantity overflowed Postgres and returned 500; each line item is now capped at 1000 → 422
@@ -15,6 +17,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 - GoDoc comments on every package and exported identifier
 - Postman request for the quantity cap (15 requests)
+- Claude Code project skill (`.claude/skills/oolio-kart`): working rules, project references, check and diagram-export scripts
 
 ### Changed
 
@@ -63,5 +66,6 @@ Original assignment submission (`main`).
 - Unit, integration, and OpenAPI contract tests; Postman collection
 - CI: gofmt, vet, golangci-lint, build, race-enabled tests
 
+[1.1.1]: https://github.com/Vasanth-Korada/oolio-kart-challenge/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Vasanth-Korada/oolio-kart-challenge/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Vasanth-Korada/oolio-kart-challenge/releases/tag/v1.0.0

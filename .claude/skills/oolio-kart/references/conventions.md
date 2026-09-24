@@ -57,8 +57,9 @@
 - The HTTP API and CLI are the public interface. `internal/` packages and the
   `coupons.idx` format are not, so changing them is minor or patch, not major
   (the owner chose 1.1.0 over 2.0.0 for the index format change).
-- Released: `v1.0.0` (`8028b8e`, submission) and `v1.1.0` (`c465f40`), both
-  annotated tags with GitHub releases.
+- Released: `v1.0.0` (`8028b8e`, submission), `v1.1.0` (`c465f40`, raw keys +
+  refactor) and `v1.1.1` (quantity cap + GoDoc), all annotated tags with GitHub
+  releases.
 
 ## CI (`.github/workflows/ci.yml`)
 
