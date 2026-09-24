@@ -132,7 +132,7 @@ The centerpiece of this assignment.
 - **Sorted slices, not one shared map.** A single `map[key]bitmask` was the first design. At ~313M lines its overhead costs tens of GB of RAM. Each file's candidates are sorted and deduplicated into an 11-byte/entry slice instead, then k-way merged. Peak memory is the sum of each file's own unique count, not a map multiplier.
 - **Raw codes, not hashes.** Valid codes are at most 10 bytes, so each is stored as-is in a fixed 11-byte key (length byte + zero-padded code). That gives exact matching with no collision risk, and is smaller than a 128-bit hash would be.
 - **Resumable downloads.** These files are large enough to stall mid-transfer (it happened during development). The fetch step checks size against `Content-Length` and resumes, rather than trusting a tool's exit code.
-- **Graceful on a bad file.** A truncated or corrupted source file logs a warning and the build continues with what it read, instead of aborting.
+- **Graceful on a bad file.** A truncated or corrupted source file logs a warning and the build continues with every complete line it read, instead of aborting. The line cut off by the error is dropped, so a fragment like the first 8 bytes of a 12-byte line can never be indexed as a code.
 
 Verified against real data: `HAPPYHRS` and `FIFTYOFF` are valid, `SUPER100` is not (`internal/coupon/index_real_data_test.go`).
 

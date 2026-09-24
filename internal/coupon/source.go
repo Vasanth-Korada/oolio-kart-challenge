@@ -14,8 +14,9 @@ import (
 type Source interface {
 	Name() string
 	// Scan calls onCode for every line of valid length and returns how
-	// many lines it read. An error wrapping ErrPartialRead means the
-	// input ended early; every line before that point was delivered.
+	// many complete lines it read. An error wrapping ErrPartialRead means
+	// the input ended early: every complete line before that point was
+	// delivered, and a line cut off by the error was not.
 	Scan(onCode func(code string)) (lines int64, err error)
 }
 
@@ -48,16 +49,30 @@ func (s GzipFileSource) Scan(onCode func(code string)) (int64, error) {
 	scanner := bufio.NewScanner(gz)
 	scanner.Buffer(make([]byte, 64*1024), 1<<20)
 
+	// Each line is held back until the next one is read. On a read error
+	// the scanner still returns the bytes it had as a final "line", which
+	// can be a real line cut short (the first 8 bytes of a 12-byte line
+	// would pass ValidLength), so that last one is dropped, not indexed.
 	var lines int64
-	for scanner.Scan() {
-		line := scanner.Text()
+	var pending string
+	havePending := false
+	emit := func() {
 		lines++
-		if ValidLength(line) {
-			onCode(line)
+		if ValidLength(pending) {
+			onCode(pending)
 		}
+	}
+	for scanner.Scan() {
+		if havePending {
+			emit()
+		}
+		pending, havePending = scanner.Text(), true
 	}
 	if err := scanner.Err(); err != nil {
 		return lines, fmt.Errorf("%w: %s: %w", ErrPartialRead, s.Path, err)
+	}
+	if havePending {
+		emit()
 	}
 	return lines, nil
 }

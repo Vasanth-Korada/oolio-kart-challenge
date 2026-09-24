@@ -1,6 +1,7 @@
 package coupon_test
 
 import (
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -62,7 +63,47 @@ func (s *GzipFileSourceSuite) TestTruncatedFileIsAPartialRead() {
 	s.Require().ErrorIs(err, coupon.ErrPartialRead)
 	s.Positive(read, "lines before the cut should still be delivered")
 	s.Less(read, int64(total))
-	s.NotEmpty(codes)
+	s.Equal(lines[:read], codes, "only complete, original lines are yielded")
+}
+
+// A file cut mid-line must not yield the cut-off fragment as a code:
+// "BBBBBBBB" below is only the first 8 bytes of a 12-byte line, which
+// would otherwise pass the length check and be indexed.
+func (s *GzipFileSourceSuite) TestLineCutByTruncationIsDropped() {
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	_, err := io.WriteString(gw, "AAAAAAAA\nBBBBBBBB")
+	s.Require().NoError(err)
+	s.Require().NoError(gw.Flush()) // everything up to here is decodable on its own
+	cut := buf.Len()
+	_, err = io.WriteString(gw, "BBBB\nCCCCCCCC\n")
+	s.Require().NoError(err)
+	s.Require().NoError(gw.Close())
+
+	path := filepath.Join(s.dir, "cut.gz")
+	s.Require().NoError(os.WriteFile(path, buf.Bytes()[:cut], 0o600))
+
+	codes, lines, err := s.scan(path)
+
+	s.Require().ErrorIs(err, coupon.ErrPartialRead)
+	s.Equal([]string{"AAAAAAAA"}, codes)
+	s.Equal(int64(1), lines, "only complete lines count")
+}
+
+func (s *GzipFileSourceSuite) TestLastLineWithoutNewlineIsKept() {
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	_, err := io.WriteString(gw, "AAAAAAAA\nBBBBBBBB")
+	s.Require().NoError(err)
+	s.Require().NoError(gw.Close())
+	path := filepath.Join(s.dir, "no-newline.gz")
+	s.Require().NoError(os.WriteFile(path, buf.Bytes(), 0o600))
+
+	codes, lines, err := s.scan(path)
+
+	s.Require().NoError(err)
+	s.Equal([]string{"AAAAAAAA", "BBBBBBBB"}, codes)
+	s.Equal(int64(2), lines)
 }
 
 func (s *GzipFileSourceSuite) TestMissingFileIsAHardError() {
