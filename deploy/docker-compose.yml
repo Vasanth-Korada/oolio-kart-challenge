@@ -22,16 +22,19 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # config/<APP_ENV>.json holds the settings. Only DATABASE_URL is set here
+    # (it points at the postgres service); the rest pass through from the
+    # shell or deploy/.env, and an empty value keeps the file's value.
     environment:
+      APP_ENV: ${APP_ENV:-dev}
       DATABASE_URL: postgres://${POSTGRES_USER:-oolio}:${POSTGRES_PASSWORD:-oolio}@postgres:5432/${POSTGRES_DB:-oolio}?sslmode=disable
-      API_KEY: ${API_KEY:-apitest}
-      JWT_SECRET: ${JWT_SECRET:-}
-      JWT_TTL: ${JWT_TTL:-15m}
-      AUTH_USERNAME: ${AUTH_USERNAME:-demo}
-      AUTH_PASSWORD: ${AUTH_PASSWORD:-demo1234}
       PORT: "8080"
-      LOG_LEVEL: info
-      COUPON_INDEX_PATH: coupons/coupons.idx
+      LOG_LEVEL: ${LOG_LEVEL:-}
+      API_KEY: ${API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_TTL: ${JWT_TTL:-}
+      AUTH_USERNAME: ${AUTH_USERNAME:-}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-}
     ports:
       - "8080:8080"
 

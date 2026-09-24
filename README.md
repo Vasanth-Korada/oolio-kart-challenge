@@ -5,7 +5,7 @@
 Go backend for Oolio's food-ordering OpenAPI 3.1 spec, with coupon validation over ~313M real codes.
 
 - **Version:** 1.3.0 · see [CHANGELOG.md](CHANGELOG.md)
-- **Stack:** Go 1.25 · stdlib `net/http` · Postgres 16 (`pgx`) · Docker
+- **Stack:** Go 1.25 · stdlib `net/http` · Postgres 16 (`pgx`) · viper config · Docker
 - **Live dashboard:** [Grafana Cloud](https://brownvalley96.grafana.net/goto/sd9ppg) (sign-in to the Grafana stack required)
 - **Frontend (demo only):** [oolio-kart-challenge-web](https://github.com/Vasanth-Korada/oolio-kart-challenge-web)
 
@@ -53,7 +53,7 @@ make docker-up          # Postgres + API on :8080
 
 - `POST /order` needs the header `api_key: apitest`, or a JWT from `POST /auth/token` (user `demo`, password `demo1234`)
 - `coupons/coupons.idx` is committed, so no coupon download is needed to run
-- No Docker? `go run ./cmd/server` falls back to in-memory storage (reviewer convenience only)
+- No Docker? `go run ./cmd/server` (dev config) falls back to in-memory storage (reviewer convenience only)
 
 | Command | What it does |
 | --- | --- |
@@ -73,8 +73,42 @@ make docker-up          # Postgres + API on :8080
 
 ## Configuration
 
-| Env var | Default | Purpose |
-| --- | --- | --- |
+Settings live in [`config/`](config), one JSON file per environment, loaded with [viper](https://github.com/spf13/viper).
+
+```
+APP_ENV=dev|stage|prod  →  config/<APP_ENV>.json  →  env var overrides  →  validate  →  start
+```
+
+| Setting | `dev.json` | `stage.json` | `prod.json` | Env override |
+| --- | --- | --- | --- | --- |
+| `server.port` | `8080` | `8080` | `8080` | `PORT` |
+| `server.*Timeout` | read header 5s, read 10s, write 10s, idle 60s | same | idle 120s | |
+| `server.shutdownTimeout` | `10s` | `15s` | `30s` | |
+| `log.level` | `debug` | `info` | `info` | `LOG_LEVEL` |
+| `cors.allowedOrigin` | `*` | `https://stage.kart.example.com` | `https://kart.example.com` | `CORS_ALLOWED_ORIGIN` |
+| `database.url` | local Postgres | env only | env only | `DATABASE_URL` |
+| `database.fallbackToMemory` | `true` | `false` | `false` | |
+| `coupon.indexPath` | `coupons/coupons.idx` | same | same | `COUPON_INDEX_PATH` |
+| `auth.apiKey` | `apitest` | env only | env only | `API_KEY` |
+| `auth.jwtSecret` | empty → random per boot | env only | env only | `JWT_SECRET` |
+| `auth.jwtTTL` | `15m` | `15m` | `10m` | `JWT_TTL` |
+| `auth.username` / `password` | `demo` / `demo1234` | env only | env only | `AUTH_USERNAME` / `AUTH_PASSWORD` |
+
+- **Choosing the file:** `APP_ENV` (default `dev`); `CONFIG_DIR` moves the folder (default `config`)
+- **Precedence:** file, then env vars; an empty env var keeps the file value
+- **No secrets in stage/prod files:** startup fails and lists every missing variable (`DATABASE_URL`, `API_KEY`, `JWT_SECRET`, `AUTH_USERNAME`, `AUTH_PASSWORD`)
+- **Fail fast outside dev:** only `dev` falls back to in-memory storage when Postgres is down
+- **Strict parsing:** an unknown key (a typo) or a bad duration stops the server at boot
+- **Docker:** the image ships `config/`; Compose sets `APP_ENV` (default `dev`) and `DATABASE_URL`, and passes the other variables through
+
+```bash
+APP_ENV=prod DATABASE_URL=... API_KEY=... JWT_SECRET="$(openssl rand -base64 32)" \
+  AUTH_USERNAME=... AUTH_PASSWORD=... go run ./cmd/server
+```
+
+Docker Compose values are overridable via `deploy/.env.example`, which also lists the Grafana Cloud variables (`GRAFANA_CLOUD_PROM_URL`, `GRAFANA_CLOUD_PROM_USER`, `GRAFANA_CLOUD_API_TOKEN`).
+
+--- | --- | --- |
 | `PORT` | `8080` | HTTP port |
 | `DATABASE_URL` | `postgres://oolio:oolio@localhost:5432/oolio?sslmode=disable` | Postgres DSN |
 | `API_KEY` | `apitest` | Key required on `POST /order` |
@@ -223,6 +257,7 @@ internal/product   model, service, repositories (Postgres + in-memory)
 internal/order     model, service (validation, pricing, coupon), repositories
 internal/coupon    Validator, Source, build pipeline, index file format
 internal/platform  Postgres pool + migrations, logging, metrics, UUIDs
+config/            dev.json, stage.json, prod.json (loaded by internal/config with viper)
 migrations/        SQL schema + seed data
 docs/diagrams/     diagrams (PNG + editable .drawio)
 deploy/            Dockerfile, Compose, Alloy, Prometheus, Grafana dashboard
@@ -342,7 +377,8 @@ Plus the standard `go_*` and `process_*` metrics.
 | Quantity capped at 1000 per line | Totals stay inside the DB columns; bad input is `422`, not `500` |
 | Sentinel errors + `errors.Is` | Status codes mapped by identity, not string matching |
 | 422 for validation, 400 for bad JSON | Separates "can't parse" from "business rule failed" |
-| In-memory fallback | Reviewer convenience; production should fail fast |
+| In-memory fallback in dev only | Reviewer convenience; stage and prod fail fast |
+| Config files per environment, secrets from env | Settings are reviewed in git; secrets never are |
 | Prometheus pull model + Alloy | Standard Go client; Alloy forwards to Grafana Cloud with no app changes |
 | Coupon index committed | Tiny and deterministic; the image never needs 2.1 GB |
 

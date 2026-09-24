@@ -20,7 +20,7 @@ CHANGELOG entry.
 | Coupon checked after the product lookups | `service.PlaceOrder` | Check it first (in-memory, cheap) |
 | One worker per coupon file | `coupon.Build` | Split each file by gzip member / byte range |
 | `"01"` works on `GET /product/01` but not as an order `productId` | handler vs service | Normalise ids in one place |
-| `CORS_ALLOWED_ORIGIN=""` can't disable CORS | `config.getEnv` | Distinguish unset from empty |
+| `CORS_ALLOWED_ORIGIN=""` can't disable CORS (viper ignores empty env vars) | `internal/config` | Set `cors.allowedOrigin` to `""` in the file, or `AllowEmptyEnv` |
 | One demo user from env vars, no `users` table | `auth.MemoryUserStore` | Postgres `users` table behind `auth.UserStore` |
 | No refresh tokens or revocation | `auth.JWTManager` | Refresh token rotation; `jti` denylist |
 | No rate limit on `POST /auth/token` | `AuthHandler.Token` | Per-IP and per-user limiter |

@@ -1,0 +1,30 @@
+{
+  "server": {
+    "port": "8080",
+    "readHeaderTimeout": "5s",
+    "readTimeout": "10s",
+    "writeTimeout": "10s",
+    "idleTimeout": "60s",
+    "shutdownTimeout": "10s"
+  },
+  "log": {
+    "level": "debug"
+  },
+  "cors": {
+    "allowedOrigin": "*"
+  },
+  "database": {
+    "url": "postgres://oolio:oolio@localhost:5432/oolio?sslmode=disable",
+    "fallbackToMemory": true
+  },
+  "coupon": {
+    "indexPath": "coupons/coupons.idx"
+  },
+  "auth": {
+    "apiKey": "apitest",
+    "jwtSecret": "",
+    "jwtTTL": "15m",
+    "username": "demo",
+    "password": "demo1234"
+  }
+}

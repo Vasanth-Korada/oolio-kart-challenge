@@ -27,11 +27,11 @@ Subtlety worth knowing: `Logging` sits inside `Recover`, so a panic unwinds past
 
 ## Startup (`cmd/server`)
 
-1. `config.Load()` from env (errors on a bad `JWT_TTL`); JSON logger via
+1. `config.Load()` (file + env, validated; any error exits); JSON logger via
    `platform/logging`; `metrics.New()`; `newAuth` builds the `JWTManager` (random
    secret + warning when `JWT_SECRET` is unset) and the one-user `MemoryUserStore`.
-2. `postgres.Connect` (pool + ping). On failure: warn and fall back to in-memory
-   repositories (reviewer convenience only; production should fail fast).
+2. `postgres.Connect` (pool + ping). On failure: dev (`fallbackToMemory`) warns
+   and falls back to in-memory repositories; stage and prod exit.
    `/readyz` reports `"storage": "postgres"` or `"in-memory (fallback)"`; the
    same value goes to the `oolio_storage_info` metric.
 3. `postgres.Migrate` applies embedded `migrations/*.sql` in name order, each in
@@ -39,28 +39,48 @@ Subtlety worth knowing: `Logging` sits inside `Recover`, so a panic unwinds past
 4. `coupon.LoadIndex(COUPON_INDEX_PATH)`: missing file → `NewUnavailableValidator`
    (rejects all coupons, fail closed); corrupt or wrong format → server exits.
    The loaded code count goes to `oolio_coupon_index_codes` (0 for the fallback).
-5. `http.Server` timeouts: ReadHeader 5s, Read 10s, Write 10s, Idle 60s.
-   SIGINT/SIGTERM → `Shutdown` with a 10s deadline.
+5. `http.Server` timeouts and the `Shutdown` deadline come from `server.*` in
+   the config file.
 
 ## Configuration
 
-| Env var | Default |
-| --- | --- |
-| `PORT` | `8080` |
-| `DATABASE_URL` | `postgres://oolio:oolio@localhost:5432/oolio?sslmode=disable` |
-| `API_KEY` | `apitest` |
-| `COUPON_INDEX_PATH` | `coupons/coupons.idx` |
-| `LOG_LEVEL` | `info` |
-| `CORS_ALLOWED_ORIGIN` | `*` |
-| `JWT_SECRET` | none: random 32 bytes per boot |
-| `JWT_TTL` | `15m` |
-| `AUTH_USERNAME` / `AUTH_PASSWORD` | `demo` / `demo1234` |
+`config/dev.json`, `stage.json`, `prod.json`, loaded by `internal/config` with
+viper (v1.21.0, the newest that keeps `go 1.25.0`). `APP_ENV` picks the file
+(default `dev`), `CONFIG_DIR` the folder (default `config`, relative to the
+working directory; the Docker image copies it to `/app/config`).
+
+- **Precedence:** file, then the env vars below (explicit `BindEnv`, no
+  `AutomaticEnv`). viper ignores an empty env var, so empty = keep the file value.
+- **`UnmarshalExact`:** an unknown JSON key is a startup error. Add a struct
+  field (with a `mapstructure` tag) before adding a key to the files.
+- **`Validate`:** positive durations, port and index path set; outside dev,
+  `DATABASE_URL`, `API_KEY`, `JWT_SECRET`, `AUTH_USERNAME`, `AUTH_PASSWORD` must
+  be set (files leave them empty) and `fallbackToMemory` must be false. All
+  problems are reported at once (`errors.Join`).
+- The stage and prod CORS origins are `example.com` placeholders.
+
+| Key | Env override | dev / stage / prod |
+| --- | --- | --- |
+| `server.port` | `PORT` | 8080 everywhere |
+| `server.readHeaderTimeout` … `idleTimeout` | none | 5s, 10s, 10s, 60s (prod idle 120s) |
+| `server.shutdownTimeout` | none | 10s / 15s / 30s |
+| `log.level` | `LOG_LEVEL` | debug / info / info |
+| `cors.allowedOrigin` | `CORS_ALLOWED_ORIGIN` | `*` / placeholder / placeholder |
+| `database.url` | `DATABASE_URL` | local DSN / env / env |
+| `database.fallbackToMemory` | none | true / false / false |
+| `coupon.indexPath` | `COUPON_INDEX_PATH` | `coupons/coupons.idx` |
+| `auth.apiKey` | `API_KEY` | `apitest` / env / env |
+| `auth.jwtSecret` | `JWT_SECRET` | empty (random per boot) / env / env |
+| `auth.jwtTTL` | `JWT_TTL` | 15m / 15m / 10m |
+| `auth.username`, `auth.password` | `AUTH_USERNAME`, `AUTH_PASSWORD` | demo, demo1234 / env / env |
+
+Compose sets only `APP_ENV` (default dev) and `DATABASE_URL`; the rest are
+`${VAR:-}` pass-throughs so the file wins. Hardcoded Compose defaults once
+overrode `prod.json` (TTL 15m instead of 10m, dev credentials in prod), so keep
+them as pass-throughs. `deploy/.env` is loaded by Compose automatically.
 
 The `GRAFANA_CLOUD_*` variables in `deploy/.env` are read by Alloy in Compose,
 not by the Go server.
-
-`getEnv` treats an empty value as unset, so `CORS_ALLOWED_ORIGIN=""` does not
-disable CORS (it becomes `*`). Don't document otherwise.
 
 ## Database
 

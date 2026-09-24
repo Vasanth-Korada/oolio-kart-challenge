@@ -1,0 +1,30 @@
+{
+  "server": {
+    "port": "8080",
+    "readHeaderTimeout": "5s",
+    "readTimeout": "10s",
+    "writeTimeout": "10s",
+    "idleTimeout": "120s",
+    "shutdownTimeout": "30s"
+  },
+  "log": {
+    "level": "info"
+  },
+  "cors": {
+    "allowedOrigin": "https://kart.example.com"
+  },
+  "database": {
+    "url": "",
+    "fallbackToMemory": false
+  },
+  "coupon": {
+    "indexPath": "coupons/coupons.idx"
+  },
+  "auth": {
+    "apiKey": "",
+    "jwtSecret": "",
+    "jwtTTL": "10m",
+    "username": "",
+    "password": ""
+  }
+}

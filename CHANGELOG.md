@@ -9,10 +9,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 ### Added
 
 - **Auth diagrams:** `docs/diagrams/auth.drawio` (HLD, LLD, dry run captured on the real stack) embedded in the README Authentication section
+- **Config files per environment:** `config/dev.json`, `stage.json`, `prod.json` loaded with viper; `APP_ENV` picks the file, env vars override it
+- **Strict config:** unknown keys and bad durations stop the server; stage and prod require `DATABASE_URL`, `API_KEY`, `JWT_SECRET`, `AUTH_USERNAME`, `AUTH_PASSWORD` from the environment
 
 ### Changed
 
 - Order diagrams show `Authenticate` + `RequireScope` instead of `APIKeyAuth`, with the re-captured 401 message and CORS headers
+- HTTP server timeouts and the shutdown deadline come from the config file instead of code
+- The in-memory fallback is dev only; stage and prod exit when Postgres is unreachable
+- Compose sets only `APP_ENV` and `DATABASE_URL` and passes the other variables through, so the config file wins; `deploy/.env.example` leaves overrides empty
+- Default log level in dev is `debug` (was `info`)
 
 ## [1.3.0] - 2026-09-24
 

@@ -50,7 +50,8 @@ cost (the submission is under review), so treat them as fixed.
 ## Quick map
 
 ```
-cmd/server         wiring, graceful shutdown, Postgres-or-memory fallback
+cmd/server         wiring, graceful shutdown, Postgres-or-memory fallback (dev only)
+config/            dev.json, stage.json, prod.json (viper, env overrides)
 cmd/buildindex     offline: coupons/raw/*.gz → coupons/coupons.idx
 internal/httpapi   router, middleware, handlers, error envelope
 internal/order     PlaceOrder: validate, merge, price, coupon, store (1 tx)

@@ -8,7 +8,7 @@ make observability-local       # + Prometheus :9090 + Grafana :3000 (dashboard p
 make observability-cloud       # + Alloy pushing to Grafana Cloud (needs deploy/.env)
 make traffic                   # 2 min of mixed traffic for the dashboard
 make docker-down               # stops every profile and drops the volume
-go run ./cmd/server            # no Postgres → in-memory fallback, warning logged
+go run ./cmd/server            # APP_ENV=dev: no Postgres → in-memory fallback, warning logged
 curl -s localhost:8080/readyz  # {"status":"ready","storage":"postgres"}
 ```
 
