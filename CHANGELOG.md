@@ -15,6 +15,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 ### Changed
 
 - Order diagrams show `Authenticate` + `RequireScope` instead of `APIKeyAuth`, with the re-captured 401 message and CORS headers
+- Order diagrams include the `Metrics` middleware (missing since 1.2.0): HLD chain and `GET /metrics`, an LLD box between RequestID and Recover, and a dry-run step with captured values
 - HTTP server timeouts and the shutdown deadline come from the config file instead of code
 - The in-memory fallback is dev only; stage and prod exit when Postgres is unreachable
 - Compose sets only `APP_ENV` and `DATABASE_URL` and passes the other variables through, so the config file wins; `deploy/.env.example` leaves overrides empty
