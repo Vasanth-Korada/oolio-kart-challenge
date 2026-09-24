@@ -6,6 +6,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-24
+
 ### Added
 
 - **Auth diagrams:** `docs/diagrams/auth.drawio` (HLD, LLD, dry run captured on the real stack) embedded in the README Authentication section
@@ -120,6 +122,7 @@ Original assignment submission (`main`).
 - Unit, integration, and OpenAPI contract tests; Postman collection
 - CI: gofmt, vet, golangci-lint, build, race-enabled tests
 
+[1.4.0]: https://github.com/Vasanth-Korada/oolio-kart-challenge/releases/tag/v1.4.0
 [1.3.0]: https://github.com/Vasanth-Korada/oolio-kart-challenge/releases/tag/v1.3.0
 [1.2.0]: https://github.com/Vasanth-Korada/oolio-kart-challenge/releases/tag/v1.2.0
 [1.1.1]: https://github.com/Vasanth-Korada/oolio-kart-challenge/releases/tag/v1.1.1
