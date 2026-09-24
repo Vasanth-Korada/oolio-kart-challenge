@@ -6,6 +6,7 @@ Go backend for Oolio's food-ordering OpenAPI 3.1 spec, with coupon validation ov
 
 - **Version:** 1.1.1 · see [CHANGELOG.md](CHANGELOG.md)
 - **Stack:** Go 1.25 · stdlib `net/http` · Postgres 16 (`pgx`) · Docker
+- **Live dashboard:** [Grafana Cloud](https://brownvalley96.grafana.net/goto/sd9ppg) (sign-in to the Grafana stack required)
 - **Frontend (demo only):** [oolio-kart-challenge-web](https://github.com/Vasanth-Korada/oolio-kart-challenge-web)
 
 ## Contents
@@ -231,6 +232,8 @@ deploy/            Dockerfile, Compose, Alloy, Prometheus, Grafana dashboard
 ```
 Go API /metrics → Grafana Alloy (scrape every 15s) → Grafana Cloud Prometheus → Grafana dashboard
 ```
+
+**Live dashboard:** [brownvalley96.grafana.net](https://brownvalley96.grafana.net/goto/sd9ppg) (Grafana Cloud; sign-in required)
 
 ![Grafana dashboard](docs/images/grafana-dashboard.png)
 

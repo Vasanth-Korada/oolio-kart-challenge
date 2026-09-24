@@ -40,6 +40,7 @@ JSON, a row in the README metrics table, and a suite test that scrapes it.
   `grep -q '^VAR=.'`, never by printing values.
 - Grafana Cloud stack: region ap-south-1, Prometheus `prometheus-prod-43`
   (remote write `https://prometheus-prod-43-prod-ap-south-1.grafana.net/api/prom/push`).
+- Live dashboard in Grafana Cloud: https://brownvalley96.grafana.net/goto/sd9ppg (linked in the README).
 - Dashboard: `deploy/grafana/dashboards/oolio-kart.json`, uid `oolio-kart-api`, with a
   `datasource` variable, so it imports into any Grafana. Import via Dashboards →
   New → Import.
