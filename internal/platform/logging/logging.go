@@ -1,3 +1,4 @@
+// Package logging builds the application's JSON logger.
 package logging
 
 import (
@@ -6,6 +7,8 @@ import (
 	"strings"
 )
 
+// New returns a JSON logger writing to stdout at the given level: debug,
+// info, warn or error (anything else means info).
 func New(level string) *slog.Logger {
 	var lvl slog.Level
 	switch strings.ToLower(level) {

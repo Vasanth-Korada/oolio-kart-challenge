@@ -1,0 +1,23 @@
+// Grafana Alloy: scrapes the API's /metrics and pushes them to Grafana Cloud.
+// Credentials come from the environment (deploy/.env), never from this file.
+
+prometheus.scrape "oolio_kart" {
+  targets = [{
+    "__address__" = "backend:8080",
+    "job"         = "oolio-kart",
+  }]
+  metrics_path    = "/metrics"
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROM_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_PROM_USER")
+      password = sys.env("GRAFANA_CLOUD_API_TOKEN")
+    }
+  }
+}

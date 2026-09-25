@@ -2,16 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, submission-v2]
   pull_request:
 
 jobs:
   build-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.25"
           cache: true
@@ -28,13 +28,13 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Install golangci-lint
-        run: |
-          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-
+      # Pinned, not @latest: a new linter release shouldn't change CI
+      # results on its own. Keep in step with the local golangci-lint.
       - name: Lint
-        run: golangci-lint run --build-tags=integration ./...
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2
+          args: --build-tags=integration ./...
 
       - name: Build
         run: go build ./...

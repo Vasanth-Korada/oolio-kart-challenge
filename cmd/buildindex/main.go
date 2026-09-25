@@ -1,3 +1,6 @@
+// Command buildindex builds coupons/coupons.idx from the gzip coupon source
+// files. Run it once, offline (make build-coupon-index); the server only loads
+// the result.
 package main
 
 import (

@@ -1,0 +1,34 @@
+{
+  "server": {
+    "port": "8080",
+    "readHeaderTimeout": "5s",
+    "readTimeout": "10s",
+    "writeTimeout": "10s",
+    "idleTimeout": "60s",
+    "shutdownTimeout": "15s"
+  },
+  "log": {
+    "level": "info"
+  },
+  "cors": {
+    "allowedOrigin": "https://stage.kart.example.com"
+  },
+  "database": {
+    "url": "",
+    "fallbackToMemory": false
+  },
+  "coupon": {
+    "indexPath": "coupons/coupons.idx"
+  },
+  "auth": {
+    "apiKey": "",
+    "jwtSecret": "",
+    "jwtTTL": "15m",
+    "username": "",
+    "password": ""
+  },
+  "discount": {
+    "defaultPercent": 5,
+    "codes": []
+  }
+}

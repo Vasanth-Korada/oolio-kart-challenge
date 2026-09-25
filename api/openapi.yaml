@@ -4,7 +4,8 @@ info:
   description: |-
     This is a e-commerce API based on the OpenAPI 3.1 specification.  You can find out more about
 
-    Use API key `apitest`
+    Use API key `apitest`, or a JWT from `POST /auth/token` (demo user
+    `demo` / `demo1234`) sent as `Authorization: Bearer <token>`.
 
     Some useful links:
     - [Repository](https://github.com/oolio-group/front-end-cart)
@@ -20,7 +21,45 @@ tags:
     description: Everything about products
   - name: order
     description: Place Orderso
+  - name: auth
+    description: >-
+      Extension beyond the base spec: JWT access tokens.
 paths:
+  /auth/token:
+    post:
+      tags:
+        - auth
+      summary: Get an access token
+      description: >-
+        Extension beyond the base spec. Exchanges a username and password
+        for a short-lived HS256 JWT carrying the create_order scope.
+      operationId: createToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenReq'
+      responses:
+        '200':
+          description: Token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '400':
+          description: Invalid JSON body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: Wrong username or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
   /product:
     get:
       tags:
@@ -72,6 +111,7 @@ paths:
       operationId: placeOrder
       security:
         - api_key: ["create_order"]
+        - bearerAuth: ["create_order"]
       requestBody:
         content:
           application/json:
@@ -87,9 +127,10 @@ paths:
         '400':
           description: Invalid input
         '401':
-          description: Unauthorized
+          description: >-
+            No credentials, or a malformed, expired or tampered bearer token
         '403':
-          description: Forbidden
+          description: Wrong api_key, or a token without the create_order scope
         '422':
           description: Validation exception
 components:
@@ -131,8 +172,9 @@ components:
           format: float
           examples: [10.0]
           description: >-
-            Amount deducted for a valid coupon (flat 5% of subtotal), 0
-            when none was applied. Already part of the base spec.
+            Amount deducted for a valid coupon, from the configured
+            discount rule (5% of subtotal by default), 0 when none was
+            applied. Already part of the base spec.
         total:
           type: number
           format: float
@@ -195,6 +237,38 @@ components:
             desktop:
               type: string
               examples: ["https://picsum.photos/seed/product-10/900/600"]
+    TokenReq:
+      type: object
+      description: Extension beyond the base spec.
+      properties:
+        username:
+          type: string
+          examples: [demo]
+        password:
+          type: string
+          format: password
+          examples: [demo1234]
+      required:
+        - username
+        - password
+    Token:
+      type: object
+      description: Extension beyond the base spec.
+      properties:
+        accessToken:
+          type: string
+          description: "HS256 JWT; send it as `Authorization: Bearer <accessToken>`"
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresIn:
+          type: integer
+          description: Seconds until the token expires
+          examples: [900]
+      required:
+        - accessToken
+        - tokenType
+        - expiresIn
     ApiResponse:
       type: object
       properties:
@@ -212,3 +286,9 @@ components:
       type: apiKey
       name: api_key
       in: header
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        Extension beyond the base spec: a token from POST /auth/token.

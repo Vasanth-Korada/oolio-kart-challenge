@@ -19,9 +19,11 @@ FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 
 COPY --from=builder /out/server ./server
-# coupons.idx is a small, committed build artifact (~136 bytes for the
+# coupons.idx is a small, committed build artifact (~96 bytes for the
 # current data), not rebuilt in the image. See README for why.
 COPY coupons/coupons.idx ./coupons/coupons.idx
+# Per-environment settings; APP_ENV picks the file, env vars override it.
+COPY config ./config
 
 EXPOSE 8080
 ENTRYPOINT ["./server"]

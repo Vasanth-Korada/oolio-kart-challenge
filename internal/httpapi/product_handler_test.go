@@ -39,6 +39,19 @@ func (f *fakeProductService) Get(_ context.Context, id string) (product.Product,
 	return p, nil
 }
 
+func (f *fakeProductService) GetMany(_ context.Context, ids []string) (map[string]product.Product, error) {
+	if f.getErr != nil {
+		return nil, f.getErr
+	}
+	out := make(map[string]product.Product, len(ids))
+	for _, id := range ids {
+		if p, ok := f.products[id]; ok {
+			out[id] = p
+		}
+	}
+	return out, nil
+}
+
 func TestProductHandler_List(t *testing.T) {
 	tests := []struct {
 		name       string
