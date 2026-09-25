@@ -19,6 +19,24 @@ type fakeCoupons map[string]bool
 
 func (f fakeCoupons) IsValid(code string) bool { return f[code] }
 
+// flatFive is the shipped default rule (5% of the subtotal) as a fake policy.
+type flatFive struct{}
+
+func (flatFive) Discount(_ string, subtotal float64) float64 { return subtotal * 0.05 }
+
+// spyDiscounts records what the service asks the policy and returns amount.
+type spyDiscounts struct {
+	amount    float64
+	codes     []string
+	subtotals []float64
+}
+
+func (d *spyDiscounts) Discount(code string, subtotal float64) float64 {
+	d.codes = append(d.codes, code)
+	d.subtotals = append(d.subtotals, subtotal)
+	return d.amount
+}
+
 type ServiceSuite struct {
 	suite.Suite
 }
@@ -31,7 +49,7 @@ func (s *ServiceSuite) newService(coupons fakeCoupons) (order.Service, *order.Me
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	products := product.NewService(product.NewMemoryRepository(product.SeedProducts()), logger)
 	repo := order.NewMemoryRepository()
-	return order.NewService(products, coupons, repo, nil, logger), repo
+	return order.NewService(products, coupons, flatFive{}, repo, nil, logger), repo
 }
 
 func (s *ServiceSuite) place(coupons fakeCoupons, couponCode string, items ...order.Item) (order.Order, error) {
@@ -207,7 +225,7 @@ func (s *ServiceSuite) TestReportsEventsToRecorder() {
 			rec := &fakeRecorder{}
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			products := product.NewService(product.NewMemoryRepository(product.SeedProducts()), logger)
-			svc := order.NewService(products, fakeCoupons{"HAPPYHRS": true}, order.NewMemoryRepository(), rec, logger)
+			svc := order.NewService(products, fakeCoupons{"HAPPYHRS": true}, flatFive{}, order.NewMemoryRepository(), rec, logger)
 
 			_, _ = svc.PlaceOrder(context.Background(), order.CreateOrderRequest{Items: tt.items, CouponCode: tt.couponCode})
 
@@ -247,7 +265,7 @@ func (s *ServiceSuite) TestCouponIsCheckedBeforeProductLookup() {
 		s.Run(tt.name, func() {
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			spy := &spyProducts{Service: product.NewService(product.NewMemoryRepository(product.SeedProducts()), logger)}
-			svc := order.NewService(spy, fakeCoupons{"HAPPYHRS": true}, order.NewMemoryRepository(), nil, logger)
+			svc := order.NewService(spy, fakeCoupons{"HAPPYHRS": true}, flatFive{}, order.NewMemoryRepository(), nil, logger)
 
 			_, err := svc.PlaceOrder(context.Background(), order.CreateOrderRequest{Items: tt.items, CouponCode: tt.couponCode})
 
@@ -257,6 +275,41 @@ func (s *ServiceSuite) TestCouponIsCheckedBeforeProductLookup() {
 				s.Require().NoError(err)
 			}
 			s.Equal(tt.wantLookups, spy.getManyCalls)
+		})
+	}
+}
+
+func (s *ServiceSuite) TestAsksThePolicyForTheDiscount() {
+	tests := []struct {
+		name          string
+		couponCode    string
+		policyAmount  float64
+		wantCodes     []string
+		wantSubtotals []float64
+		wantDiscount  float64
+		wantTotal     float64
+	}{
+		// product "1" = $6.50, product "9" = $3.50 -> subtotal $10.00
+		{name: "valid coupon: the policy prices it, the service rounds it", couponCode: "HAPPYHRS", policyAmount: 1.234,
+			wantCodes: []string{"HAPPYHRS"}, wantSubtotals: []float64{10}, wantDiscount: 1.23, wantTotal: 8.77},
+		{name: "no coupon: the policy is not asked", policyAmount: 1.234, wantDiscount: 0, wantTotal: 10},
+	}
+	for _, tt := range tests {
+		s.Run(tt.name, func() {
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			products := product.NewService(product.NewMemoryRepository(product.SeedProducts()), logger)
+			policy := &spyDiscounts{amount: tt.policyAmount}
+			svc := order.NewService(products, fakeCoupons{"HAPPYHRS": true}, policy, order.NewMemoryRepository(), nil, logger)
+
+			got, err := svc.PlaceOrder(context.Background(), order.CreateOrderRequest{
+				Items: []order.Item{item("1", 1), item("9", 1)}, CouponCode: tt.couponCode,
+			})
+
+			s.Require().NoError(err)
+			s.Equal(tt.wantCodes, policy.codes)
+			s.Equal(tt.wantSubtotals, policy.subtotals)
+			s.Equal(tt.wantDiscount, got.Discount)
+			s.Equal(tt.wantTotal, got.Total)
 		})
 	}
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/auth"
+	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/discount"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/httpapi"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/order"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/product"
@@ -31,6 +32,15 @@ const (
 type fakeCouponValidator struct{ valid map[string]bool }
 
 func (f fakeCouponValidator) IsValid(code string) bool { return f.valid[code] }
+
+// defaultDiscounts is the policy the config files ship: 5% for every valid code.
+func defaultDiscounts() *discount.Policy {
+	policy, err := discount.New(discount.Config{DefaultPercent: 5})
+	if err != nil {
+		panic(err)
+	}
+	return policy
+}
 
 type alwaysHealthyPinger struct{}
 
@@ -60,7 +70,7 @@ func (s *ContractSuite) SetupTest() {
 
 	orderRepo := order.NewMemoryRepository()
 	couponValidator := fakeCouponValidator{valid: map[string]bool{"HAPPYHRS": true}}
-	orderService := order.NewService(productService, couponValidator, orderRepo, nil, logger)
+	orderService := order.NewService(productService, couponValidator, defaultDiscounts(), orderRepo, nil, logger)
 
 	users, err := auth.NewMemoryUserStore()
 	s.Require().NoError(err)

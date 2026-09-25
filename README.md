@@ -32,7 +32,7 @@ Go backend for Oolio's food-ordering OpenAPI 3.1 spec, with coupon validation ov
 - **Order placement:** prices computed server-side, client prices never trusted
 - **Duplicate items merged:** the same `productId` twice becomes one line item
 - **Coupon validation at scale:** 313M codes → 96-byte index, O(log n) lookup
-- **5% coupon discount:** documented extension to the base spec
+- **Configurable coupon discount:** 5% by default, optional percent per code, set in config (extension to the base spec)
 - **JWT auth:** `POST /auth/token` issues HS256 tokens; `POST /order` checks the Bearer token and its `create_order` scope
 - **API-key auth:** still accepted on `POST /order` (base spec), constant-time comparison
 - **Postgres persistence:** versioned migrations, one transaction per order
@@ -93,12 +93,22 @@ APP_ENV=dev|stage|prod  →  config/<APP_ENV>.json  →  env var overrides  → 
 | `auth.jwtSecret` | empty → random per boot | env only | env only | `JWT_SECRET` |
 | `auth.jwtTTL` | `15m` | `15m` | `10m` | `JWT_TTL` |
 | `auth.username` / `password` | `demo` / `demo1234` | env only | env only | `AUTH_USERNAME` / `AUTH_PASSWORD` |
+| `discount.defaultPercent` | `5` | `5` | `5` | |
+| `discount.codes` | none | none | none | |
 
 - **Choosing the file:** `APP_ENV` (default `dev`); `CONFIG_DIR` moves the folder (default `config`)
 - **Precedence:** file, then env vars; an empty env var keeps the file value
 - **No secrets in stage/prod files:** startup fails and lists every missing variable (`DATABASE_URL`, `API_KEY`, `JWT_SECRET`, `AUTH_USERNAME`, `AUTH_PASSWORD`)
 - **Fail fast outside dev:** only `dev` falls back to in-memory storage when Postgres is down
 - **Strict parsing:** an unknown key (a typo) or a bad duration stops the server at boot
+- **Discount:** every valid code gets `discount.defaultPercent`; a code listed in `discount.codes` gets its own percent. Percents must be above 0 and at most 100, otherwise the server stops at boot
+
+```jsonc
+"discount": {
+  "defaultPercent": 5,
+  "codes": [ { "code": "HAPPYHRS", "percent": 10 } ]  // example only; ships empty
+}
+```
 - **Docker:** the image ships `config/`; Compose sets `APP_ENV` (default `dev`) and `DATABASE_URL`, and passes the other variables through
 
 ```bash
@@ -257,6 +267,7 @@ internal/auth      JWT issue/verify, user store (bcrypt), claims and scopes
 internal/product   model, service, repositories (Postgres + in-memory)
 internal/order     model, service (validation, pricing, coupon), repositories
 internal/coupon    Validator, Source, build pipeline, index file format
+internal/discount  DiscountPolicy from config: default percent + per-code percents
 internal/platform  Postgres pool + migrations, logging, metrics, UUIDs
 config/            dev.json, stage.json, prod.json (loaded by internal/config with viper)
 migrations/        SQL schema + seed data
@@ -382,6 +393,8 @@ Plus the standard `go_*` and `process_*` metrics.
 | 422 for validation, 400 for bad JSON | Separates "can't parse" from "business rule failed" |
 | In-memory fallback in dev only | Reviewer convenience; stage and prod fail fast |
 | Config files per environment, secrets from env | Settings are reviewed in git; secrets never are |
+| Validity and price are separate | `coupon.Validator` says if a code is valid; `order.DiscountPolicy` says how much it's worth |
+| Discount codes are a JSON list | viper lowercases map keys, and coupon codes are case-sensitive |
 | Prometheus pull model + Alloy | Standard Go client; Alloy forwards to Grafana Cloud with no app changes |
 | Coupon index committed | Tiny and deterministic; the image never needs 2.1 GB |
 
@@ -395,7 +408,6 @@ Found in self-review; planned next.
 | --- | --- |
 | Money is `float64` in Go (exact `NUMERIC` in Postgres) | `int64` cents |
 | No `Idempotency-Key`: a retry creates a duplicate order | Idempotency key + unique constraint |
-| Flat 5% discount is hardcoded | `DiscountPolicy` interface per coupon |
 | Committed index holds valid codes in plain text | Build in CI from a private source |
 | Service log lines lack `request_id` | Use the request-scoped logger |
 | A panic skips the access log line | Move `Logging` outside `Recover` |

@@ -8,7 +8,6 @@ CHANGELOG entry.
 | --- | --- | --- |
 | Money is `float64` in Go (exact `NUMERIC` in Postgres) | `order/service.go`, `roundMoney` | `int64` cents end to end |
 | No `Idempotency-Key`: a client retry creates a duplicate order | `POST /order` | Header + unique constraint, return the stored order |
-| Flat 5% discount hardcoded | `order.CouponDiscountRate` | `DiscountPolicy` interface per coupon |
 | Committed index holds valid codes in plain text | `coupons/coupons.idx` | Build in CI from a private source |
 | Service logs lack `request_id` | `order.service` uses `s.logger` | Request-scoped logger from context |
 | A panic skips the access log line | middleware order in `router.go` | Put `Logging` outside `Recover` |
@@ -25,4 +24,5 @@ CHANGELOG entry.
 Fixed so far (don't re-add): N+1 order queries (batched, 5 statements per order),
 huge quantity returned 500 (capped at 1000 → 422),
 coupon checked after the product lookup (now before it, 0 SQL for a bad coupon),
+flat 5% discount hardcoded (now `discount` percents in config, default 5%),
 truncated gzip line indexed as a code, invalid `.golangci.yml` v1 key.

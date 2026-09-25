@@ -10,6 +10,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 - **Line-item cap:** an order can have at most 100 lines (`MaxLineItems`), checked before any per-line work; more is `422` "order can have at most 100 items", with the metric reason `too_many_items`
 - Postman request with 101 lines (20 requests, 34 assertions)
+- **Configurable coupon discounts:** `order.DiscountPolicy` replaces the hardcoded 5% (`CouponDiscountRate`); `internal/discount` prices valid codes from a new `discount` config section, `defaultPercent` plus an optional percent per code. Ships with the default 5% only, so totals are unchanged
 
 ### Changed
 

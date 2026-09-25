@@ -55,7 +55,7 @@ func TestMetricsMiddlewareSuite(t *testing.T) {
 func (s *MetricsMiddlewareSuite) SetupTest() {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	products := product.NewService(product.NewMemoryRepository(product.SeedProducts()), logger)
-	orders := order.NewService(products, fakeCouponValidator{}, order.NewMemoryRepository(), nil, logger)
+	orders := order.NewService(products, fakeCouponValidator{}, defaultDiscounts(), order.NewMemoryRepository(), nil, logger)
 	s.metrics = &fakeHTTPMetrics{}
 	s.router = httpapi.NewRouter(httpapi.RouterDeps{
 		Product: &httpapi.ProductHandler{Service: products},

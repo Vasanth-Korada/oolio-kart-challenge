@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
+
+	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/discount"
 )
 
 // Environments with a config file in the config directory.
@@ -59,6 +61,9 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"database"`
 	Coupon   CouponConfig   `mapstructure:"coupon"`
 	Auth     AuthConfig     `mapstructure:"auth"`
+	// Discount prices valid coupons: a default rule plus optional per-code
+	// rules. It has no env override; change it in the file.
+	Discount discount.Config `mapstructure:"discount"`
 }
 
 // ServerConfig holds the listen port and the http.Server timeouts.
@@ -163,6 +168,10 @@ func (c Config) Validate() error {
 		if duration.value <= 0 {
 			errs = append(errs, fmt.Errorf("%s must be a positive duration such as 15m", duration.name))
 		}
+	}
+
+	if err := c.Discount.Validate(); err != nil {
+		errs = append(errs, err)
 	}
 
 	if c.Env != EnvDev {

@@ -79,6 +79,13 @@ Compose sets only `APP_ENV` (default dev) and `DATABASE_URL`; the rest are
 overrode `prod.json` (TTL 15m instead of 10m, dev credentials in prod), so keep
 them as pass-throughs. `deploy/.env` is loaded by Compose automatically.
 
+`discount` (no env override): `defaultPercent` (5 in every file) and a `codes`
+list of `{code, percent}` (empty). Percent only, by the owner's choice (no
+fixed amounts, caps or minimum spend). A list, not a map: viper lowercases map
+keys and coupon codes are case-sensitive. `config.Validate` calls
+`discount.Config.Validate`; `cmd/server` builds the `discount.Policy` and passes
+it to `order.NewService`.
+
 The `GRAFANA_CLOUD_*` variables in `deploy/.env` are read by Alloy in Compose,
 not by the Go server.
 

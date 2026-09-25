@@ -17,6 +17,7 @@ import (
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/auth"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/config"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/coupon"
+	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/discount"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/httpapi"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/order"
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/platform/logging"
@@ -93,7 +94,14 @@ func run() error {
 	met.SetCouponIndexCodes(codes)
 
 	productService := product.NewService(productRepo, logger)
-	orderService := order.NewService(productService, couponValidator, orderRepo, met, logger)
+	discounts, err := discount.New(cfg.Discount)
+	if err != nil {
+		return err
+	}
+	logger.Info("discount: rules loaded",
+		slog.Float64("default_percent", cfg.Discount.DefaultPercent),
+		slog.Int("code_rules", discounts.Rules()))
+	orderService := order.NewService(productService, couponValidator, discounts, orderRepo, met, logger)
 
 	router := httpapi.NewRouter(httpapi.RouterDeps{
 		Product:    &httpapi.ProductHandler{Service: productService},

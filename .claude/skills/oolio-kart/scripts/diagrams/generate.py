@@ -90,7 +90,7 @@ lbox("Merge duplicates", "same product → one line")
 ldecide("Coupon valid?<br><span style='font-size:11px'>in memory, if one was sent</span>", "422 invalid coupon<br>(no SQL sent)")
 lbox("Look up products", "1 query for the whole cart")
 ldecide("All products exist?", "422 lists every<br>unknown product")
-lbox("Price the order", "subtotal · 5% discount · total")
+lbox("Price the order", "subtotal · discount rule · total")
 lbox("Save", "1 transaction: order + all lines", "green")
 lbox("200 OK", "order JSON", "green")
 note(ol, "Why it is fast", ["Cheap checks first: line cap, then the in-memory coupon, then SQL",

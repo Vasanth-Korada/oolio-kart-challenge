@@ -172,8 +172,9 @@ components:
           format: float
           examples: [10.0]
           description: >-
-            Amount deducted for a valid coupon (flat 5% of subtotal), 0
-            when none was applied. Already part of the base spec.
+            Amount deducted for a valid coupon, from the configured
+            discount rule (5% of subtotal by default), 0 when none was
+            applied. Already part of the base spec.
         total:
           type: number
           format: float

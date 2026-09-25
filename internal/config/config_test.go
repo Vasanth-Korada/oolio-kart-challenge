@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/config"
+	"github.com/Vasanth-Korada/oolio-kart-challenge/internal/discount"
 )
 
 // repoConfigDir holds the committed dev, stage and prod files.
@@ -30,7 +31,8 @@ const validJSON = `{
   "cors": {"allowedOrigin": "*"},
   "database": {"url": "postgres://localhost/oolio", "fallbackToMemory": true},
   "coupon": {"indexPath": "coupons/coupons.idx"},
-  "auth": {"apiKey": "k", "jwtSecret": "", "jwtTTL": "15m", "username": "demo", "password": "pw"}
+  "auth": {"apiKey": "k", "jwtSecret": "", "jwtTTL": "15m", "username": "demo", "password": "pw"},
+  "discount": {"defaultPercent": 5, "codes": []}
 }`
 
 type ConfigSuite struct {
@@ -79,6 +81,8 @@ func (s *ConfigSuite) TestDevIsTheDefault() {
 	s.Equal(15*time.Minute, cfg.Auth.JWTTTL)
 	s.Equal(5*time.Second, cfg.Server.ReadHeaderTimeout)
 	s.Equal(10*time.Second, cfg.Server.ShutdownTimeout)
+	s.Equal(5.0, cfg.Discount.DefaultPercent, "ships with the flat 5% default")
+	s.Empty(cfg.Discount.Codes)
 }
 
 func (s *ConfigSuite) TestRepoFilesForEveryEnvironment() {
@@ -107,6 +111,7 @@ func (s *ConfigSuite) TestRepoFilesForEveryEnvironment() {
 			s.Equal(tt.wantShutdown, cfg.Server.ShutdownTimeout)
 			s.Equal(tt.wantOrigin, cfg.CORS.AllowedOrigin)
 			s.Equal("postgres://db.internal/oolio", cfg.Database.URL, "secrets come from the environment")
+			s.Equal(5.0, cfg.Discount.DefaultPercent)
 		})
 	}
 }
@@ -171,6 +176,8 @@ func (s *ConfigSuite) TestErrors() {
 		{name: "zero duration", env: "dev", body: replace(validJSON, `"shutdownTimeout": "10s"`, `"shutdownTimeout": "0s"`), wantErr: "server.shutdownTimeout must be a positive duration"},
 		{name: "negative JWT_TTL", env: "dev", body: validJSON, setenv: map[string]string{"JWT_TTL": "-5m"}, wantErr: "auth.jwtTTL (JWT_TTL) must be a positive duration"},
 		{name: "memory fallback outside dev", env: "prod", body: validJSON, wantErr: "database.fallbackToMemory is only allowed in dev"},
+		{name: "invalid discount percent", env: "dev", body: replace(validJSON, `"defaultPercent": 5`, `"defaultPercent": 150`), wantErr: "discount.defaultPercent: percent must be above 0 and at most 100"},
+		{name: "unknown discount key", env: "dev", body: replace(validJSON, `"defaultPercent": 5`, `"defaultPercent": 5, "type": "fixed"`), wantErr: "type"},
 	}
 	for _, tt := range tests {
 		s.Run(tt.name, func() {
@@ -195,4 +202,14 @@ func (s *ConfigSuite) TestErrors() {
 
 func replace(s, old, new string) string {
 	return strings.Replace(s, old, new, 1)
+}
+
+func (s *ConfigSuite) TestDiscountCodeRulesKeepTheirCase() {
+	s.writeConfig("dev", replace(validJSON, `"codes": []`, `"codes": [{"code": "HAPPYHRS", "percent": 10}]`))
+
+	cfg, err := config.Load()
+
+	s.Require().NoError(err)
+	s.Equal([]discount.CodeRule{{Code: "HAPPYHRS", Percent: 10}}, cfg.Discount.Codes,
+		"a list keeps the code's case; viper would lowercase map keys")
 }

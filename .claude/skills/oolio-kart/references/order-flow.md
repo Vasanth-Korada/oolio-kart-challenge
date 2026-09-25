@@ -29,7 +29,10 @@
      every id missing from the map is reported in one `ErrProductNotFound`
      (`products 999, 11`); any other error → 500.
    - `subtotal += price × qty` (prices from the catalog, never the client).
-   - `discount = roundMoney(subtotal × 0.05)` if a coupon was given;
+   - `discount = roundMoney(discounts.Discount(code, subtotal))` if a coupon was
+     given. `order.DiscountPolicy` is implemented by `internal/discount` from the
+     config file (default 5%, optional percent per code); percents are at most
+     100, so it never exceeds the subtotal; the service rounds.
      `total = roundMoney(subtotal − discount)`; id = `idgen.NewUUID()` (v4).
 5. `DBRepository.Create`: `pgx.BeginFunc` → insert `orders` (coupon NULL when
    empty) → **one** `INSERT … SELECT … FROM unnest($2::text[], $3::int[],

@@ -26,5 +26,9 @@
     "jwtTTL": "15m",
     "username": "demo",
     "password": "demo1234"
+  },
+  "discount": {
+    "defaultPercent": 5,
+    "codes": []
   }
 }

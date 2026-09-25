@@ -30,9 +30,12 @@ const MaxLineItems = 100
 // not a numeric overflow (500).
 const MaxItemQuantity = 1000
 
-// CouponDiscountRate is applied to the order subtotal when a valid
-// coupon is supplied.
-const CouponDiscountRate = 0.05
+// DiscountPolicy decides how much a valid coupon takes off the subtotal.
+// The coupon.Validator decides whether a code is valid; the policy only
+// prices it. The result must not exceed subtotal; the service rounds it.
+type DiscountPolicy interface {
+	Discount(code string, subtotal float64) float64
+}
 
 // Item is one line of an order: a product and how many of it.
 type Item struct {

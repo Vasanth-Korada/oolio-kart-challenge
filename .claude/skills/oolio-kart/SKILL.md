@@ -58,6 +58,7 @@ internal/order     PlaceOrder: validate, merge, price, coupon, store (1 tx)
 internal/auth      JWT (golang-jwt v5, HS256) issue/verify, bcrypt user store
 internal/product   catalog (Postgres or in-memory seed)
 internal/coupon    Validator, Index, Source, build pipeline, CPX2 file format
+internal/discount  DiscountPolicy from config (default 5%, per-code percents)
 internal/platform  pgx pool + migrations, JSON logger, Prometheus metrics, UUID v4
 migrations/        embedded SQL; docs/diagrams/ draw.io sources + PNGs
 deploy/            Compose (profiles: local, cloud), Alloy, Prometheus, Grafana dashboard

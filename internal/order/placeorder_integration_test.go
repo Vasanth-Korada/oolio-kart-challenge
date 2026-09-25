@@ -70,7 +70,7 @@ func (s *PlaceOrderDBSuite) SetupSuite() {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	products := product.NewService(product.NewDBRepository(s.pool), logger)
-	s.svc = order.NewService(products, nil, order.NewDBRepository(s.pool), nil, logger)
+	s.svc = order.NewService(products, nil, flatFive{}, order.NewDBRepository(s.pool), nil, logger)
 }
 
 func (s *PlaceOrderDBSuite) TearDownSuite() {
@@ -147,7 +147,7 @@ func (s *PlaceOrderDBSuite) TestUnknownProductsAreAllReportedAndNothingIsStored(
 func (s *PlaceOrderDBSuite) TestInvalidCouponSendsNoStatements() {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	products := product.NewService(product.NewDBRepository(s.pool), logger)
-	svc := order.NewService(products, fakeCoupons{"HAPPYHRS": true}, order.NewDBRepository(s.pool), nil, logger)
+	svc := order.NewService(products, fakeCoupons{"HAPPYHRS": true}, flatFive{}, order.NewDBRepository(s.pool), nil, logger)
 
 	tests := []struct {
 		name           string

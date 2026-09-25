@@ -14,21 +14,22 @@ import (
 )
 
 type service struct {
-	products product.Service
-	coupons  coupon.Validator
-	repo     Repository
-	rec      Recorder
-	logger   *slog.Logger
+	products  product.Service
+	coupons   coupon.Validator
+	discounts DiscountPolicy
+	repo      Repository
+	rec       Recorder
+	logger    *slog.Logger
 }
 
 // NewService returns a Service that prices items with products, checks
-// coupons with coupons, stores orders in repo, and reports events to rec.
-// A nil rec records nothing.
-func NewService(products product.Service, coupons coupon.Validator, repo Repository, rec Recorder, logger *slog.Logger) Service {
+// coupons with coupons, prices valid coupons with discounts, stores orders in
+// repo, and reports events to rec. A nil rec records nothing.
+func NewService(products product.Service, coupons coupon.Validator, discounts DiscountPolicy, repo Repository, rec Recorder, logger *slog.Logger) Service {
 	if rec == nil {
 		rec = noopRecorder{}
 	}
-	return &service{products: products, coupons: coupons, repo: repo, rec: rec, logger: logger}
+	return &service{products: products, coupons: coupons, discounts: discounts, repo: repo, rec: rec, logger: logger}
 }
 
 // PlaceOrder validates, merges and prices the request, applies the coupon
@@ -132,7 +133,7 @@ func (s *service) placeOrder(ctx context.Context, req CreateOrderRequest) (Order
 
 	discount := 0.0
 	if req.CouponCode != "" {
-		discount = roundMoney(subtotal * CouponDiscountRate)
+		discount = roundMoney(s.discounts.Discount(req.CouponCode, subtotal))
 	}
 	subtotal = roundMoney(subtotal)
 
