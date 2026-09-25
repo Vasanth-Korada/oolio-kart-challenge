@@ -48,7 +48,9 @@
   `internal/coupon`, `internal/platform/metrics`, `order/service_test.go`,
   `httpapi/order_handler_test.go`, `httpapi/metrics_test.go`,
   `httpapi/middleware_test.go`, `httpapi/contract_test.go`,
-  `httpapi/auth_handler_test.go`, `internal/auth`, `internal/config`).
+  `httpapi/auth_handler_test.go`, `internal/auth`, `internal/config`,
+  `product/service_test.go`). One suite per unit: add tests to the unit's
+  existing suite file rather than a new `*_test.go` beside it.
   Other packages still use plain `t.Run` tables; convert them when touched.
 - Table-driven cases inside suite methods (`s.Run(tt.name, ...)`).
 - For a bug fix, show the new test fails without the fix (temporarily revert, run,
