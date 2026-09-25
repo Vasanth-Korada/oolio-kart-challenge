@@ -29,8 +29,8 @@ func withRequestID(ctx context.Context, id string) context.Context {
 // Falls back to slog.Default() (not nil) when fallback is nil and the
 // context has no logger, e.g. a test calling a handler directly.
 func LoggerFromContext(ctx context.Context, fallback *slog.Logger) *slog.Logger {
-	if l, ok := ctx.Value(loggerKey).(*slog.Logger); ok && l != nil {
-		return l
+	if logger, ok := ctx.Value(loggerKey).(*slog.Logger); ok && logger != nil {
+		return logger
 	}
 	if fallback != nil {
 		return fallback
@@ -38,17 +38,17 @@ func LoggerFromContext(ctx context.Context, fallback *slog.Logger) *slog.Logger 
 	return slog.Default()
 }
 
-func withLogger(ctx context.Context, l *slog.Logger) context.Context {
-	return context.WithValue(ctx, loggerKey, l)
+func withLogger(ctx context.Context, logger *slog.Logger) context.Context {
+	return context.WithValue(ctx, loggerKey, logger)
 }
 
 // ClaimsFromContext returns the caller's identity set by the Authenticate
 // middleware, and false on routes that don't authenticate.
 func ClaimsFromContext(ctx context.Context) (auth.Claims, bool) {
-	c, ok := ctx.Value(claimsKey).(auth.Claims)
-	return c, ok
+	claims, ok := ctx.Value(claimsKey).(auth.Claims)
+	return claims, ok
 }
 
-func withClaims(ctx context.Context, c auth.Claims) context.Context {
-	return context.WithValue(ctx, claimsKey, c)
+func withClaims(ctx context.Context, claims auth.Claims) context.Context {
+	return context.WithValue(ctx, claimsKey, claims)
 }

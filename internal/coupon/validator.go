@@ -15,8 +15,8 @@ const (
 // ValidLength reports whether code has an allowed length (8 to 10 bytes).
 // Both the build and the lookup apply it.
 func ValidLength(code string) bool {
-	n := len(code)
-	return n >= minLength && n <= maxLength
+	length := len(code)
+	return length >= minLength && length <= maxLength
 }
 
 type unavailableValidator struct{}

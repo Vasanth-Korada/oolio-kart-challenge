@@ -27,9 +27,9 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, migrationsFS fs.FS) error 
 	}
 
 	var names []string
-	for _, e := range entries {
-		if !e.IsDir() {
-			names = append(names, e.Name())
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			names = append(names, entry.Name())
 		}
 	}
 	sort.Strings(names)

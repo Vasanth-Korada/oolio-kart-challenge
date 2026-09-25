@@ -15,11 +15,11 @@ import (
 // Middleware wraps an http.Handler with extra behaviour.
 type Middleware func(http.Handler) http.Handler
 
-func chain(h http.Handler, mws ...Middleware) http.Handler {
-	for i := len(mws) - 1; i >= 0; i-- {
-		h = mws[i](h)
+func chain(handler http.Handler, middlewares ...Middleware) http.Handler {
+	for position := len(middlewares) - 1; position >= 0; position-- {
+		handler = middlewares[position](handler)
 	}
-	return h
+	return handler
 }
 
 type statusRecorder struct {
@@ -132,15 +132,15 @@ const apiKeySubject = "api_key"
 //     403, as before JWT support; it grants the create_order scope.
 //
 // No credentials at all is 401. Every 401 carries WWW-Authenticate: Bearer.
-func Authenticate(verifier auth.TokenVerifier, apiKey string, m AuthMetrics) Middleware {
-	if m == nil {
-		m = noAuthMetrics{}
+func Authenticate(verifier auth.TokenVerifier, apiKey string, recorder AuthMetrics) Middleware {
+	if recorder == nil {
+		recorder = noAuthMetrics{}
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if header := r.Header.Get("Authorization"); header != "" {
 				claims, err := verifyBearer(verifier, header)
-				m.AuthAttempt(authMethodBearer, err == nil)
+				recorder.AuthAttempt(authMethodBearer, err == nil)
 				if err != nil {
 					writeUnauthorized(w, `Bearer error="invalid_token"`, "invalid or expired token")
 					return
@@ -151,7 +151,7 @@ func Authenticate(verifier auth.TokenVerifier, apiKey string, m AuthMetrics) Mid
 
 			if key := r.Header.Get("api_key"); key != "" {
 				ok := subtle.ConstantTimeCompare([]byte(key), []byte(apiKey)) == 1
-				m.AuthAttempt(authMethodAPIKey, ok)
+				recorder.AuthAttempt(authMethodAPIKey, ok)
 				if !ok {
 					WriteError(w, http.StatusForbidden, "forbidden", "invalid api_key")
 					return

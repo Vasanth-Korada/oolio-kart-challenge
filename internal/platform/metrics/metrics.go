@@ -40,7 +40,7 @@ type Metrics struct {
 // New creates the collectors and registers them, plus the standard Go
 // runtime and process collectors.
 func New() *Metrics {
-	m := &Metrics{
+	metrics := &Metrics{
 		registry: prometheus.NewRegistry(),
 		httpRequests: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: namespace, Subsystem: "http", Name: "requests_total",
@@ -85,15 +85,15 @@ func New() *Metrics {
 			Help: "Storage backing the API: 1 for the active mode.",
 		}, []string{"mode"}),
 	}
-	m.registry.MustRegister(
-		m.httpRequests, m.httpDuration, m.httpInFlight,
-		m.ordersPlaced, m.orderRejections, m.orderAmount, m.couponChecks,
-		m.authAttempts,
-		m.couponIndexCodes, m.storage,
+	metrics.registry.MustRegister(
+		metrics.httpRequests, metrics.httpDuration, metrics.httpInFlight,
+		metrics.ordersPlaced, metrics.orderRejections, metrics.orderAmount, metrics.couponChecks,
+		metrics.authAttempts,
+		metrics.couponIndexCodes, metrics.storage,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
-	return m
+	return metrics
 }
 
 // Handler serves the metrics in the Prometheus text format, for /metrics.

@@ -15,6 +15,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 - **Coupon checked before the product lookup:** the in-memory coupon check now runs before `GetMany`, so an invalid coupon is rejected with no SQL statement (was 1). An order with both an invalid coupon and an unknown product now gets the coupon error (still `422`)
 - Order diagrams show the 100-line cap and the coupon check before the product lookup
+- Descriptive names instead of single-letter variables across non-test code (e.g. `mergeAtLeastN` uses `cursors`, `smallest`, `filesWithKey`); a pure rename, the rebuilt `coupons.idx` is byte-identical
 
 ## [1.4.0] - 2026-09-24
 

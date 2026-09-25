@@ -60,9 +60,9 @@ func rejectionReason(err error) (string, bool) {
 		{ErrProductNotFound, "product_not_found"},
 		{ErrInvalidCoupon, "invalid_coupon"},
 	}
-	for _, r := range reasons {
-		if errors.Is(err, r.err) {
-			return r.reason, true
+	for _, rule := range reasons {
+		if errors.Is(err, rule.err) {
+			return rule.reason, true
 		}
 	}
 	return "", false
@@ -112,8 +112,8 @@ func (s *service) placeOrder(ctx context.Context, req CreateOrderRequest) (Order
 	// cost stays flat as the cart grows, and all prices come from the same
 	// moment.
 	ids := make([]string, len(merged))
-	for i, item := range merged {
-		ids[i] = item.ProductID
+	for lineIndex, item := range merged {
+		ids[lineIndex] = item.ProductID
 	}
 	found, err := s.products.GetMany(ctx, ids)
 	if err != nil {
@@ -125,9 +125,9 @@ func (s *service) placeOrder(ctx context.Context, req CreateOrderRequest) (Order
 
 	resolved := make([]product.Product, len(merged))
 	subtotal := 0.0
-	for i, item := range merged {
-		resolved[i] = found[item.ProductID]
-		subtotal += resolved[i].Price * float64(item.Quantity)
+	for lineIndex, item := range merged {
+		resolved[lineIndex] = found[item.ProductID]
+		subtotal += resolved[lineIndex].Price * float64(item.Quantity)
 	}
 
 	discount := 0.0
@@ -136,7 +136,7 @@ func (s *service) placeOrder(ctx context.Context, req CreateOrderRequest) (Order
 	}
 	subtotal = roundMoney(subtotal)
 
-	o := Order{
+	newOrder := Order{
 		ID:         idgen.NewUUID(),
 		Items:      merged,
 		Products:   resolved,
@@ -146,7 +146,7 @@ func (s *service) placeOrder(ctx context.Context, req CreateOrderRequest) (Order
 		Total:      roundMoney(subtotal - discount),
 	}
 
-	created, err := s.repo.Create(ctx, o)
+	created, err := s.repo.Create(ctx, newOrder)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "order: create failed", slog.Any("error", err))
 		return Order{}, err
@@ -202,12 +202,12 @@ func mergeItems(items []Item) []Item {
 	}
 
 	out := make([]Item, len(order))
-	for i, id := range order {
-		out[i] = Item{ProductID: id, Quantity: quantityByID[id]}
+	for index, id := range order {
+		out[index] = Item{ProductID: id, Quantity: quantityByID[id]}
 	}
 	return out
 }
 
-func roundMoney(v float64) float64 {
-	return math.Round(v*100) / 100
+func roundMoney(amount float64) float64 {
+	return math.Round(amount*100) / 100
 }

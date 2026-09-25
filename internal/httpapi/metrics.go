@@ -33,7 +33,7 @@ const unmatchedRoute = "unmatched"
 // is resolved before the request is served, because inner middleware passes
 // copies of the request down and the mux's pattern never reaches this layer.
 // Requests for skipRoute (the metrics endpoint itself) are not recorded.
-func Metrics(m HTTPMetrics, routeOf func(*http.Request) string, skipRoute string) Middleware {
+func Metrics(recorder HTTPMetrics, routeOf func(*http.Request) string, skipRoute string) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			route := routeOf(r)
@@ -45,10 +45,10 @@ func Metrics(m HTTPMetrics, routeOf func(*http.Request) string, skipRoute string
 				route = unmatchedRoute
 			}
 			start := time.Now()
-			m.RequestStarted()
+			recorder.RequestStarted()
 			rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 			defer func() {
-				m.RequestFinished(r.Method, route, rec.status, time.Since(start))
+				recorder.RequestFinished(r.Method, route, rec.status, time.Since(start))
 			}()
 			next.ServeHTTP(rec, r)
 		})

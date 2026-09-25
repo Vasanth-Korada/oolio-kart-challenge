@@ -57,11 +57,11 @@ func NewJWTManager(secret []byte, ttl time.Duration) (*JWTManager, error) {
 // RandomSecret returns MinSecretLen random bytes, for when no secret is
 // configured. Tokens signed with it stop verifying once the process exits.
 func RandomSecret() ([]byte, error) {
-	b := make([]byte, MinSecretLen)
-	if _, err := rand.Read(b); err != nil {
+	secret := make([]byte, MinSecretLen)
+	if _, err := rand.Read(secret); err != nil {
 		return nil, fmt.Errorf("generate jwt secret: %w", err)
 	}
-	return b, nil
+	return secret, nil
 }
 
 // Issue signs a token for subject with the given scopes. The jti is a random

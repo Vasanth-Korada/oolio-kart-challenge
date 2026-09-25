@@ -28,17 +28,17 @@ type productResponse struct {
 	Image    imageResponse `json:"image"`
 }
 
-func toProductResponse(p product.Product) productResponse {
+func toProductResponse(item product.Product) productResponse {
 	return productResponse{
-		ID:       p.ID,
-		Name:     p.Name,
-		Price:    p.Price,
-		Category: p.Category,
+		ID:       item.ID,
+		Name:     item.Name,
+		Price:    item.Price,
+		Category: item.Category,
 		Image: imageResponse{
-			Thumbnail: p.Image.Thumbnail,
-			Mobile:    p.Image.Mobile,
-			Tablet:    p.Image.Tablet,
-			Desktop:   p.Image.Desktop,
+			Thumbnail: item.Image.Thumbnail,
+			Mobile:    item.Image.Mobile,
+			Tablet:    item.Image.Tablet,
+			Desktop:   item.Image.Desktop,
 		},
 	}
 }
@@ -53,8 +53,8 @@ func (h *ProductHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := make([]productResponse, len(products))
-	for i, p := range products {
-		resp[i] = toProductResponse(p)
+	for index, item := range products {
+		resp[index] = toProductResponse(item)
 	}
 	WriteJSON(w, http.StatusOK, resp)
 }

@@ -16,11 +16,11 @@ func (idx *Index) IsValid(code string) bool {
 	if !ValidLength(code) {
 		return false
 	}
-	k := makeKey(code)
-	i := sort.Search(len(idx.keys), func(i int) bool {
-		return compareKeys(idx.keys[i], k) >= 0
+	key := makeKey(code)
+	position := sort.Search(len(idx.keys), func(candidate int) bool {
+		return compareKeys(idx.keys[candidate], key) >= 0
 	})
-	return i < len(idx.keys) && idx.keys[i] == k
+	return position < len(idx.keys) && idx.keys[position] == key
 }
 
 // Len returns the number of valid codes in the index.

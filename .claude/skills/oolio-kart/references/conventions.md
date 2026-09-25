@@ -30,6 +30,12 @@
   version (e.g. `x/crypto v0.55.0`) and check `git diff go.mod` after `go get`.
 
 - Idiomatic Go, `gofmt`, small packages, sentinel errors compared with `errors.Is`.
+- Descriptive names (owner's request, 2026-09-25): no single-letter locals, loop
+  variables or parameters in non-test code (`fileIndex`, `cursors`, `lastUnique`,
+  not `i`, `idxs`, `j`). Kept: method receivers, `w`/`r` in handlers, `ctx`, `err`,
+  and `t`/`s`/`tt` in tests. Don't name a variable after an imported package in
+  the same file (`httpapi` uses `item`, not `product`). `gopls rename` does it
+  scope-safely.
 - Interface first, but only at real seams (a consumer needs it, or tests need a
   fake). Define interfaces where they are consumed.
 - GoDoc on every package and exported identifier; the comment starts with the

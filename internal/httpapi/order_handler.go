@@ -38,23 +38,23 @@ type orderResponse struct {
 	Total      float64             `json:"total"`
 }
 
-func toOrderResponse(o order.Order) orderResponse {
-	items := make([]orderItemResponse, len(o.Items))
-	for i, it := range o.Items {
-		items[i] = orderItemResponse{ProductID: it.ProductID, Quantity: it.Quantity}
+func toOrderResponse(placed order.Order) orderResponse {
+	items := make([]orderItemResponse, len(placed.Items))
+	for index, line := range placed.Items {
+		items[index] = orderItemResponse{ProductID: line.ProductID, Quantity: line.Quantity}
 	}
-	products := make([]productResponse, len(o.Products))
-	for i, p := range o.Products {
-		products[i] = toProductResponse(p)
+	products := make([]productResponse, len(placed.Products))
+	for index, item := range placed.Products {
+		products[index] = toProductResponse(item)
 	}
 	return orderResponse{
-		ID:         o.ID,
+		ID:         placed.ID,
 		Items:      items,
 		Products:   products,
-		CouponCode: o.CouponCode,
-		Subtotal:   o.Subtotal,
-		Discount:   o.Discount,
-		Total:      o.Total,
+		CouponCode: placed.CouponCode,
+		Subtotal:   placed.Subtotal,
+		Discount:   placed.Discount,
+		Total:      placed.Total,
 	}
 }
 
@@ -68,8 +68,8 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	items := make([]order.Item, len(req.Items))
-	for i, it := range req.Items {
-		items[i] = order.Item{ProductID: it.ProductID, Quantity: it.Quantity}
+	for index, line := range req.Items {
+		items[index] = order.Item{ProductID: line.ProductID, Quantity: line.Quantity}
 	}
 
 	created, err := h.Service.PlaceOrder(r.Context(), order.CreateOrderRequest{

@@ -114,19 +114,19 @@ func Load() (Config, error) {
 	}
 	file := filepath.Join(getEnv("CONFIG_DIR", defaultDir), env+".json")
 
-	v := viper.New()
-	v.SetConfigFile(file)
-	if err := v.ReadInConfig(); err != nil {
+	settings := viper.New()
+	settings.SetConfigFile(file)
+	if err := settings.ReadInConfig(); err != nil {
 		return Config{}, fmt.Errorf("config: read %s: %w", file, err)
 	}
 	for key, envVar := range envOverrides {
-		if err := v.BindEnv(key, envVar); err != nil {
+		if err := settings.BindEnv(key, envVar); err != nil {
 			return Config{}, fmt.Errorf("config: bind %s: %w", envVar, err)
 		}
 	}
 
 	var cfg Config
-	if err := v.UnmarshalExact(&cfg); err != nil {
+	if err := settings.UnmarshalExact(&cfg); err != nil {
 		return Config{}, fmt.Errorf("config: parse %s: %w", file, err)
 	}
 	cfg.Env, cfg.File = env, file
@@ -159,9 +159,9 @@ func (c Config) Validate() error {
 		{"server.shutdownTimeout", c.Server.ShutdownTimeout},
 		{"auth.jwtTTL (JWT_TTL)", c.Auth.JWTTTL},
 	}
-	for _, d := range durations {
-		if d.value <= 0 {
-			errs = append(errs, fmt.Errorf("%s must be a positive duration such as 15m", d.name))
+	for _, duration := range durations {
+		if duration.value <= 0 {
+			errs = append(errs, fmt.Errorf("%s must be a positive duration such as 15m", duration.name))
 		}
 	}
 
@@ -173,9 +173,9 @@ func (c Config) Validate() error {
 			{c.Auth.Username, "AUTH_USERNAME"},
 			{c.Auth.Password, "AUTH_PASSWORD"},
 		}
-		for _, r := range required {
-			if r.value == "" {
-				errs = append(errs, fmt.Errorf("%s must be set in %s", r.name, c.Env))
+		for _, requirement := range required {
+			if requirement.value == "" {
+				errs = append(errs, fmt.Errorf("%s must be set in %s", requirement.name, c.Env))
 			}
 		}
 		if c.Database.FallbackToMemory {

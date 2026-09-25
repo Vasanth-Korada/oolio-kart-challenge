@@ -12,8 +12,8 @@ type MemoryRepository struct {
 // NewMemoryRepository returns a MemoryRepository holding seed.
 func NewMemoryRepository(seed []Product) *MemoryRepository {
 	byID := make(map[string]Product, len(seed))
-	for _, p := range seed {
-		byID[p.ID] = p
+	for _, product := range seed {
+		byID[product.ID] = product
 	}
 	return &MemoryRepository{products: seed, byID: byID}
 }
@@ -62,8 +62,8 @@ func SeedProducts() []Product {
 		{ID: "9", Name: "Oat & Raisin Cookie", Price: 3.50, Category: "Cookie"},
 		{ID: "10", Name: "Chicken Waffle", Price: 9.00, Category: "Waffle"},
 	}
-	for i := range products {
-		products[i].Image = seedImage(products[i].ID)
+	for index := range products {
+		products[index].Image = seedImage(products[index].ID)
 	}
 	return products
 }

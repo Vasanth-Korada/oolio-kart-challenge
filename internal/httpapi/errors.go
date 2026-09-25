@@ -12,10 +12,10 @@ type apiError struct {
 }
 
 // WriteJSON writes v as a JSON response with the given status code.
-func WriteJSON(w http.ResponseWriter, status int, v any) {
+func WriteJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(body)
 }
 
 // WriteError writes the API error envelope: {"code", "type", "message"}.

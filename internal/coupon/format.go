@@ -25,19 +25,19 @@ func writeIndex(w io.Writer, keys []codeKey) error {
 		return fmt.Errorf("coupon: %d valid codes exceeds the uint32 index header limit", len(keys))
 	}
 
-	bw := bufio.NewWriter(w)
+	buffered := bufio.NewWriter(w)
 	var header [headerBytes]byte
 	copy(header[0:4], indexMagic)
 	binary.BigEndian.PutUint32(header[4:8], uint32(len(keys))) //nolint:gosec // bounds-checked above
-	if _, err := bw.Write(header[:]); err != nil {
+	if _, err := buffered.Write(header[:]); err != nil {
 		return err
 	}
-	for _, k := range keys {
-		if _, err := bw.Write(k[:]); err != nil {
+	for _, key := range keys {
+		if _, err := buffered.Write(key[:]); err != nil {
 			return err
 		}
 	}
-	return bw.Flush()
+	return buffered.Flush()
 }
 
 func parseIndex(data []byte) ([]codeKey, error) {
@@ -51,9 +51,9 @@ func parseIndex(data []byte) ([]codeKey, error) {
 	}
 
 	keys := make([]codeKey, count)
-	for i := range keys {
-		off := headerBytes + i*keySize
-		copy(keys[i][:], data[off:off+keySize])
+	for keyIndex := range keys {
+		offset := headerBytes + keyIndex*keySize
+		copy(keys[keyIndex][:], data[offset:offset+keySize])
 	}
 	return keys, nil
 }

@@ -9,12 +9,12 @@ import (
 // NewUUID returns a random (version 4) UUID from crypto/rand. It panics if
 // the system's random source fails.
 func NewUUID() string {
-	var b [16]byte
-	if _, err := rand.Read(b[:]); err != nil {
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
 		panic("idgen: failed to read random bytes: " + err.Error())
 	}
-	b[6] = (b[6] & 0x0f) | 0x40
-	b[8] = (b[8] & 0x3f) | 0x80
+	random[6] = (random[6] & 0x0f) | 0x40
+	random[8] = (random[8] & 0x3f) | 0x80
 
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+	return fmt.Sprintf("%x-%x-%x-%x-%x", random[0:4], random[4:6], random[6:8], random[8:10], random[10:16])
 }

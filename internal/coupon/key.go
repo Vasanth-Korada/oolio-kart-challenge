@@ -10,12 +10,12 @@ const keySize = 1 + maxLength
 type codeKey [keySize]byte
 
 func makeKey(code string) codeKey {
-	var k codeKey
-	k[0] = byte(len(code)) //nolint:gosec // callers check ValidLength first, so len is 8-10
-	copy(k[1:], code)
-	return k
+	var key codeKey
+	key[0] = byte(len(code)) //nolint:gosec // callers check ValidLength first, so len is 8-10
+	copy(key[1:], code)
+	return key
 }
 
-func compareKeys(a, b codeKey) int {
-	return bytes.Compare(a[:], b[:])
+func compareKeys(left, right codeKey) int {
+	return bytes.Compare(left[:], right[:])
 }

@@ -26,8 +26,8 @@ type Stats struct {
 // BuildIndex builds the index from gzip files on disk; see Build.
 func BuildIndex(paths []string, outPath string, logger *slog.Logger) (Stats, error) {
 	sources := make([]Source, len(paths))
-	for i, p := range paths {
-		sources[i] = GzipFileSource{Path: p}
+	for fileIndex, path := range paths {
+		sources[fileIndex] = GzipFileSource{Path: path}
 	}
 	return Build(sources, outPath, logger)
 }
@@ -43,38 +43,38 @@ func Build(sources []Source, outPath string, logger *slog.Logger) (Stats, error)
 		return Stats{}, fmt.Errorf("coupon: need at least %d source files, got %d", requiredFileCount, len(sources))
 	}
 
-	sets := make([][]codeKey, len(sources))
+	keysPerFile := make([][]codeKey, len(sources))
 	lineCounts := make([]int64, len(sources))
 
 	// Sources are independent until the merge below, so they're read and
-	// sorted concurrently. Every goroutine owns a distinct index into
-	// sets/lineCounts, no shared state, no lock needed.
-	g := new(errgroup.Group)
-	for i, src := range sources {
-		g.Go(func() error {
-			keys, lines, err := collectKeys(src)
+	// sorted concurrently. Every goroutine owns a distinct fileIndex into
+	// keysPerFile/lineCounts, no shared state, no lock needed.
+	readers := new(errgroup.Group)
+	for fileIndex, source := range sources {
+		readers.Go(func() error {
+			keys, lines, err := collectKeys(source)
 			if errors.Is(err, ErrPartialRead) {
 				logger.Warn("coupon: source file ended early, continuing with partial data",
-					slog.Int("file_index", i),
-					slog.String("path", src.Name()),
+					slog.Int("file_index", fileIndex),
+					slog.String("path", source.Name()),
 					slog.Int64("lines_read", lines),
 					slog.Any("error", err),
 				)
 			} else if err != nil {
 				return err
 			}
-			sets[i] = keys
-			lineCounts[i] = lines
+			keysPerFile[fileIndex] = keys
+			lineCounts[fileIndex] = lines
 			logger.Info("coupon: indexed source file",
-				slog.Int("file_index", i),
-				slog.String("path", src.Name()),
+				slog.Int("file_index", fileIndex),
+				slog.String("path", source.Name()),
 				slog.Int64("lines", lines),
 				slog.Int("unique_candidates", len(keys)),
 			)
 			return nil
 		})
 	}
-	if err := g.Wait(); err != nil {
+	if err := readers.Wait(); err != nil {
 		return Stats{}, err
 	}
 
@@ -82,12 +82,12 @@ func Build(sources []Source, outPath string, logger *slog.Logger) (Stats, error)
 		PerFileLines:      lineCounts,
 		PerFileCandidates: make([]int, len(sources)),
 	}
-	for i := range sources {
-		stats.PerFileCandidates[i] = len(sets[i])
-		stats.TotalLines += lineCounts[i]
+	for fileIndex := range sources {
+		stats.PerFileCandidates[fileIndex] = len(keysPerFile[fileIndex])
+		stats.TotalLines += lineCounts[fileIndex]
 	}
 
-	valid := mergeAtLeastN(sets, requiredFileCount)
+	valid := mergeAtLeastN(keysPerFile, requiredFileCount)
 	stats.ValidCodes = len(valid)
 
 	size, err := writeIndexFile(outPath, valid)
@@ -100,9 +100,9 @@ func Build(sources []Source, outPath string, logger *slog.Logger) (Stats, error)
 
 // collectKeys returns a source's candidate codes, sorted and deduplicated.
 // On ErrPartialRead it still returns everything read before the error.
-func collectKeys(src Source) ([]codeKey, int64, error) {
+func collectKeys(source Source) ([]codeKey, int64, error) {
 	var keys []codeKey
-	lines, err := src.Scan(func(code string) {
+	lines, err := source.Scan(func(code string) {
 		keys = append(keys, makeKey(code))
 	})
 	if err != nil && !errors.Is(err, ErrPartialRead) {
@@ -112,53 +112,53 @@ func collectKeys(src Source) ([]codeKey, int64, error) {
 	return dedupeSorted(keys), lines, err
 }
 
-func dedupeSorted(s []codeKey) []codeKey {
-	if len(s) == 0 {
-		return s
+func dedupeSorted(keys []codeKey) []codeKey {
+	if len(keys) == 0 {
+		return keys
 	}
-	j := 0
-	for i := 1; i < len(s); i++ {
-		if s[i] != s[j] {
-			j++
-			s[j] = s[i]
+	lastUnique := 0
+	for readAt := 1; readAt < len(keys); readAt++ {
+		if keys[readAt] != keys[lastUnique] {
+			lastUnique++
+			keys[lastUnique] = keys[readAt]
 		}
 	}
-	return s[:j+1]
+	return keys[:lastUnique+1]
 }
 
-// mergeAtLeastN k-way merges sorted, deduplicated sets and keeps each key
-// present in at least n of them. It advances each set at most one step
-// per round, so a key's count is the number of sets containing it. The
-// result comes out sorted, ready for binary search.
-func mergeAtLeastN(sets [][]codeKey, n int) []codeKey {
-	idxs := make([]int, len(sets))
+// mergeAtLeastN k-way merges each file's sorted, deduplicated keys and keeps
+// every key present in at least minFiles of them. It advances each file's
+// cursor at most one step per round, so filesWithKey counts files, not
+// lines. The result comes out sorted, ready for binary search.
+func mergeAtLeastN(keysPerFile [][]codeKey, minFiles int) []codeKey {
+	cursors := make([]int, len(keysPerFile))
 	var result []codeKey
 
 	for {
-		var min codeKey
-		minSet := -1
-		for i, s := range sets {
-			if idxs[i] >= len(s) {
+		var smallest codeKey
+		smallestFile := -1
+		for fileIndex, keys := range keysPerFile {
+			if cursors[fileIndex] >= len(keys) {
 				continue
 			}
-			if minSet == -1 || compareKeys(s[idxs[i]], min) < 0 {
-				min = s[idxs[i]]
-				minSet = i
+			if smallestFile == -1 || compareKeys(keys[cursors[fileIndex]], smallest) < 0 {
+				smallest = keys[cursors[fileIndex]]
+				smallestFile = fileIndex
 			}
 		}
-		if minSet == -1 {
+		if smallestFile == -1 {
 			break
 		}
 
-		count := 0
-		for i, s := range sets {
-			if idxs[i] < len(s) && s[idxs[i]] == min {
-				count++
-				idxs[i]++
+		filesWithKey := 0
+		for fileIndex, keys := range keysPerFile {
+			if cursors[fileIndex] < len(keys) && keys[cursors[fileIndex]] == smallest {
+				filesWithKey++
+				cursors[fileIndex]++
 			}
 		}
-		if count >= n {
-			result = append(result, min)
+		if filesWithKey >= minFiles {
+			result = append(result, smallest)
 		}
 	}
 	return result
@@ -168,20 +168,20 @@ func writeIndexFile(outPath string, keys []codeKey) (int64, error) {
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o750); err != nil {
 		return 0, fmt.Errorf("coupon: mkdir for %s: %w", outPath, err)
 	}
-	f, err := os.Create(outPath) //nolint:gosec // outPath is an operator-supplied CLI flag (cmd/buildindex), not user input
+	file, err := os.Create(outPath) //nolint:gosec // outPath is an operator-supplied CLI flag (cmd/buildindex), not user input
 	if err != nil {
 		return 0, fmt.Errorf("coupon: create %s: %w", outPath, err)
 	}
-	defer func() { _ = f.Close() }() // safety net for early returns; the happy path closes and checks explicitly below
+	defer func() { _ = file.Close() }() // safety net for early returns; the happy path closes and checks explicitly below
 
-	if err := writeIndex(f, keys); err != nil {
+	if err := writeIndex(file, keys); err != nil {
 		return 0, fmt.Errorf("coupon: write index: %w", err)
 	}
 	var size int64
-	if info, err := f.Stat(); err == nil {
+	if info, err := file.Stat(); err == nil {
 		size = info.Size()
 	}
-	if err := f.Close(); err != nil {
+	if err := file.Close(); err != nil {
 		return 0, fmt.Errorf("coupon: close %s: %w", outPath, err)
 	}
 	return size, nil
