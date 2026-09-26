@@ -118,7 +118,8 @@ APP_ENV=prod DATABASE_URL=... API_KEY=... JWT_SECRET="$(openssl rand -base64 32)
 
 Docker Compose values are overridable via `deploy/.env.example`, which also lists the Grafana Cloud variables (`GRAFANA_CLOUD_PROM_URL`, `GRAFANA_CLOUD_PROM_USER`, `GRAFANA_CLOUD_API_TOKEN`).
 
---- | --- | --- |
+| Variable | Default | Description |
+| --- | --- | --- |
 | `PORT` | `8080` | HTTP port |
 | `DATABASE_URL` | `postgres://oolio:oolio@localhost:5432/oolio?sslmode=disable` | Postgres DSN |
 | `API_KEY` | `apitest` | Key required on `POST /order` |
